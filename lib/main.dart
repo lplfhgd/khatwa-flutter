@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'features/children/controllers/children_controller.dart';
 import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
+import 'features/aac/controllers/aac_controller.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
@@ -985,16 +986,30 @@ class ParentContent extends StatelessWidget {
             onPressed: () => showAddDialog(context,
                 title: 'بطاقة AAC جديدة',
                 hint: 'مثال: أريد كتابًا',
-                onSave: store.addCard)),
+                onSave: Get.find<AacController>().addCard)),
         const SizedBox(height: 12),
-        ...store.cards.map((card) => Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: KCard(
-                child: ListTile(
-                    leading:
-                        Icon(card.symbol, color: KColors.primary, size: 32),
+        Obx(() {
+          final cards = Get.find<AacController>().cards;
+
+          return Column(
+            children: cards.map((card) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: KCard(
+                  child: ListTile(
+                    leading: Icon(
+                      card.symbol,
+                      color: KColors.primary,
+                      size: 32,
+                    ),
                     title: Text(card.label),
-                    subtitle: Text(card.category))))),
+                    subtitle: Text(card.category),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        }),
         const SizedBox(height: 10),
         KButton(
             label: 'إدارة الروتين اليومي',
@@ -1345,51 +1360,90 @@ class _ChildEntry extends StatelessWidget {
 
 class ChildAac extends StatelessWidget {
   const ChildAac({super.key, required this.store});
+
   final DemoStore store;
+
   @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.all(16), children: [
-        const Text('أتواصل',
+  Widget build(BuildContext context) {
+    final aacController = Get.find<AacController>();
+
+    return Obx(() {
+      final cards = aacController.cards;
+
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'أتواصل',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 7),
-        const Text('اختر ما تريد قوله',
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 24),
-        GridView.builder(
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 7),
+          const Text(
+            'اختر ما تريد قوله',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20),
+          ),
+          const SizedBox(height: 24),
+          GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.95),
-            itemCount: store.cards.length,
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.95,
+            ),
+            itemCount: cards.length,
             itemBuilder: (context, index) {
-              final card = store.cards[index];
+              final card = cards[index];
+
               return InkWell(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
                       content: Text(
-                          'اخترت: ${card.label} • النطق الصوتي سيُضاف لاحقًا'))),
-                  child: Container(
-                    decoration: BoxDecoration(
-                        color: index.isEven
-                            ? KColors.soft
-                            : const Color(0xFFFFF1D0),
-                        borderRadius: BorderRadius.circular(24)),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(card.symbol, size: 66, color: KColors.primary),
-                          const SizedBox(height: 12),
-                          Text(card.label,
-                              style: const TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center)
-                        ]),
-                  ));
-            }),
-      ]);
+                        'اخترت: ${card.label} • النطق الصوتي سيُضاف لاحقًا',
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color:
+                        index.isEven ? KColors.soft : const Color(0xFFFFF1D0),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        card.symbol,
+                        size: 66,
+                        color: KColors.primary,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        card.label,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    });
+  }
 }
 
 class ChildRoutine extends StatelessWidget {

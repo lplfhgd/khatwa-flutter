@@ -4,6 +4,7 @@ import '../../features/auth/controllers/auth_controller.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../features/children/controllers/children_controller.dart';
 import '../../features/children/controllers/selected_child_controller.dart';
+import '../../features/aac/controllers/aac_controller.dart';
 import '../../features/children/services/children_service.dart';
 
 class AppBinding extends Bindings {
@@ -38,6 +39,11 @@ class AppBinding extends Bindings {
         Get.find<ChildrenService>(),
         Get.find<SelectedChildController>(),
       ),
+      permanent: true,
+    );
+    // AAC communication cards
+    Get.put<AacController>(
+      AacController(),
       permanent: true,
     );
   }
