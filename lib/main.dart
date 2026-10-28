@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'features/children/controllers/children_controller.dart';
 import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
 import 'features/auth/controllers/auth_controller.dart';
@@ -511,6 +511,14 @@ class ParentShell extends StatefulWidget {
 
 class _ParentShellState extends State<ParentShell> {
   int tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Open the authenticated parent's Firestore stream once per shell instance.
+    Get.find<ChildrenController>().startWatching();
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
       animation: widget.store,
@@ -571,76 +579,63 @@ void showAddDialog(BuildContext context,
           )).then((_) => controller.dispose());
 }
 
-/// الملفات السحابية للأطفال تحت حساب ولي الأمر المصادق عليه فقط.
+/// Child profiles are provided by ChildrenController; views never query Firestore.
 class ChildProfilesSection extends StatelessWidget {
   const ChildProfilesSection({super.key, required this.store});
   final DemoStore store;
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const KCard(child: Text('سجّل الدخول لإدارة ملفات الأطفال.'));
-    }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('parents')
-          .doc(user.uid)
-          .collection('children')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return KCard(
-              child: Column(
+    final childrenController = Get.find<ChildrenController>();
+    final selectedController = Get.find<SelectedChildController>();
+
+    return Obx(() {
+      final children = childrenController.children;
+      final loading = childrenController.isLoading.value;
+      final error = childrenController.errorMessage.value;
+      final selectedId = selectedController.selectedChildId.value;
+
+      if (loading && children.isEmpty) {
+        return const KCard(child: Center(child: CircularProgressIndicator()));
+      }
+      if (error != null && children.isEmpty) {
+        return KCard(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                  'تعذّر تحميل ملفات الأطفال. تحقق من الإنترنت والصلاحيات.'),
+              Text(error),
               const SizedBox(height: 8),
               KButton(
-                  label: 'إدارة ملفات الأطفال',
-                  outlined: true,
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => ChildProfilesScreen(store: store)))),
+                label: 'إعادة المحاولة',
+                outlined: true,
+                onPressed: childrenController.startWatching,
+              ),
             ],
-          ));
-        }
-        if (!snapshot.hasData) {
-          return const KCard(child: Center(child: CircularProgressIndicator()));
-        }
-        final docs = snapshot.data!.docs;
-        final childController = Get.find<SelectedChildController>();
-        return Obx(() {
-          final selected = docs
-              .where((d) => d.id == childController.selectedChildId.value)
-              .toList();
-          final activeName = selected.isEmpty
-              ? 'لم يتم اختيار طفل'
-              : (selected.first.data()['name'] as String? ?? 'طفل');
-          return KCard(
-            tint: KColors.soft,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                  radius: 29, child: Icon(Icons.child_care, size: 32)),
-              title: Text(activeName,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
-              subtitle: Text(docs.isEmpty
-                  ? 'لا توجد ملفات أطفال بعد. أضف طفلًا تجريبيًا.'
-                  : 'ملفات الأطفال: ${docs.length} • اضغط للإدارة أو اختيار طفل'),
-              trailing: const Icon(Icons.chevron_left),
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => ChildProfilesScreen(store: store))),
-            ),
-          );
-        });
-      },
-    );
+          ),
+        );
+      }
+
+      final selected = children.where((child) => child.id == selectedId);
+      final activeName =
+          selected.isEmpty ? 'لم يتم اختيار طفل' : selected.first.name;
+
+      return KCard(
+        tint: KColors.soft,
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const CircleAvatar(
+              radius: 29, child: Icon(Icons.child_care, size: 32)),
+          title: Text(activeName,
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          subtitle: Text(children.isEmpty
+              ? 'لا توجد ملفات أطفال بعد. أضف طفلًا تجريبيًا.'
+              : 'ملفات الأطفال: ${children.length} • اضغط للإدارة أو اختيار طفل'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Get.to(() => ChildProfilesScreen(store: store)),
+        ),
+      );
+    });
   }
 }
 
@@ -650,119 +645,120 @@ class ChildProfilesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final childController = Get.find<SelectedChildController>();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return Scaffold(
-          appBar: AppBar(title: const Text('ملفات الأطفال')),
-          body: const Center(child: Text('يجب تسجيل دخول ولي الأمر.')));
-    }
-    final collection = FirebaseFirestore.instance
-        .collection('parents')
-        .doc(user.uid)
-        .collection('children');
+    final childrenController = Get.find<ChildrenController>();
+    final selectedController = Get.find<SelectedChildController>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('ملفات الأطفال')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: collection.snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                        'تعذّر تحميل البيانات. تحقق من الإنترنت وقواعد Firestore.')));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final docs = snapshot.data!.docs.toList()
-            ..sort((a, b) => (a.data()['name'] as String? ?? '')
-                .compareTo(b.data()['name'] as String? ?? ''));
-          return Obx(() =>
-              ListView(padding: const EdgeInsets.all(20), children: [
-                const Text('إدارة أطفال العائلة',
-                    style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                        color: KColors.text)),
-                const SizedBox(height: 8),
-                const Text(
-                    'استخدم أسماء تجريبية فقط خلال التطوير. يتيح لك الاختيار تحديد الطفل النشط في هذه الجلسة.'),
-                const SizedBox(height: 18),
-                KButton(
-                    label: 'إضافة طفل جديد',
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => ChildProfileEditor(store: store)))),
-                const SizedBox(height: 18),
-                if (docs.isEmpty)
-                  const KCard(
-                      child: Text(
-                          'لا توجد ملفات أطفال حاليًا. اضغط «إضافة طفل جديد» للبدء.')),
-                ...docs.map((doc) {
-                  final data = doc.data();
-                  final name = data['name'] as String? ?? 'طفل';
-                  final birthYear = data['birthYear'];
-                  final isSelected =
-                      childController.selectedChildId.value == doc.id;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: KCard(
-                      tint: isSelected ? KColors.soft : Colors.white,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.child_care_outlined,
-                            color: KColors.primary,
-                            size: 32),
-                        title: Text(name,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(birthYear is int
-                            ? 'سنة الميلاد: $birthYear'
-                            : 'سنة الميلاد غير محددة'),
-                        onTap: () {
-                          childController.selectChild(doc.id, name);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content:
-                                  Text('تم اختيار $name للواجهة التجريبية.')));
-                        },
-                        trailing: IconButton(
-                          tooltip: 'تعديل الملف',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => ChildProfileEditor(
-                                        store: store,
-                                        childId: doc.id,
-                                        initialName: name,
-                                        initialBirthYear:
-                                            birthYear is int ? birthYear : null,
-                                      ))),
-                        ),
-                      ),
+      body: Obx(() {
+        final children = childrenController.children.toList();
+        final loading = childrenController.isLoading.value;
+        final error = childrenController.errorMessage.value;
+        final selectedId = selectedController.selectedChildId.value;
+
+        if (loading && children.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (error != null && children.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(error, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  KButton(
+                      label: 'إعادة المحاولة',
+                      onPressed: childrenController.startWatching),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text('إدارة أطفال العائلة',
+                style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                    color: KColors.text)),
+            const SizedBox(height: 8),
+            const Text(
+                'استخدم أسماء تجريبية فقط خلال التطوير. يتيح لك الاختيار تحديد الطفل النشط في هذه الجلسة.'),
+            const SizedBox(height: 18),
+            KButton(
+              label: 'إضافة طفل جديد',
+              onPressed: () => Get.to(() => ChildProfileEditor(store: store)),
+            ),
+            const SizedBox(height: 18),
+            if (error != null) ...[
+              Text(error, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 12),
+            ],
+            if (children.isEmpty)
+              const KCard(
+                  child: Text(
+                      'لا توجد ملفات أطفال حاليًا. اضغط «إضافة طفل جديد» للبدء.')),
+            ...children.map((child) {
+              final isSelected = selectedId == child.id;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: KCard(
+                  tint: isSelected ? KColors.soft : Colors.white,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      isSelected
+                          ? Icons.check_circle
+                          : Icons.child_care_outlined,
+                      color: KColors.primary,
+                      size: 32,
                     ),
-                  );
-                }),
-              ]));
-        },
-      ),
+                    title: Text(child.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(child.birthYear == null
+                        ? 'سنة الميلاد غير محددة'
+                        : 'سنة الميلاد: ${child.birthYear}'),
+                    onTap: () {
+                      childrenController.selectChild(child);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'تم اختيار ${child.name} للواجهة التجريبية.')),
+                      );
+                    },
+                    trailing: IconButton(
+                      tooltip: 'تعديل الملف',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => Get.to(() => ChildProfileEditor(
+                            store: store,
+                            childId: child.id,
+                            initialName: child.name,
+                            initialBirthYear: child.birthYear,
+                          )),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      }),
     );
   }
 }
 
 class ChildProfileEditor extends StatefulWidget {
-  const ChildProfileEditor(
-      {super.key,
-      required this.store,
-      this.childId,
-      this.initialName,
-      this.initialBirthYear});
+  const ChildProfileEditor({
+    super.key,
+    required this.store,
+    this.childId,
+    this.initialName,
+    this.initialBirthYear,
+  });
   final DemoStore store;
   final String? childId;
   final String? initialName;
@@ -774,10 +770,9 @@ class ChildProfileEditor extends StatefulWidget {
 
 class _ChildProfileEditorState extends State<ChildProfileEditor> {
   final _formKey = GlobalKey<FormState>();
+  final ChildrenController childrenController = Get.find<ChildrenController>();
   late final TextEditingController _name;
   late final TextEditingController _birthYear;
-  bool _saving = false;
-  String? _error;
 
   @override
   void initState() {
@@ -795,53 +790,27 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
-    final childController = Get.find<SelectedChildController>();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _error = 'انتهت جلسة الدخول. سجّل الدخول مجددًا.');
+    if (childrenController.isSaving.value ||
+        !_formKey.currentState!.validate()) {
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final collection = FirebaseFirestore.instance
-          .collection('parents')
-          .doc(user.uid)
-          .collection('children');
-      final name = _name.text.trim();
-      final yearText = _birthYear.text.trim();
-      final year = yearText.isEmpty ? null : int.parse(yearText);
-      final fields = <String, dynamic>{
-        'name': name,
-        'birthYear': year,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      if (widget.childId == null) {
-        final ref = collection.doc();
-        await ref.set({
-          ...fields,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        childController.selectChild(ref.id, name);
-      } else {
-        await collection.doc(widget.childId).update(fields);
-        if (childController.selectedChildId.value == widget.childId) {
-          childController.selectChild(widget.childId!, name);
-        }
-      }
-      if (mounted) Navigator.pop(context);
-    } on FirebaseException catch (e) {
-      if (mounted) {
-        setState(() => _error =
-            'تعذّر حفظ الملف (${e.code}). تحقق من الاتصال وقواعد الأمان.');
-      }
-    } catch (_) {
-      if (mounted) setState(() => _error = 'حدث خطأ غير متوقع أثناء الحفظ.');
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    final name = _name.text.trim();
+    final yearText = _birthYear.text.trim();
+    final year = yearText.isEmpty ? null : int.parse(yearText);
+
+    final bool succeeded;
+    if (widget.childId == null) {
+      succeeded =
+          await childrenController.addChild(name: name, birthYear: year);
+    } else {
+      succeeded = await childrenController.updateChild(
+        childId: widget.childId!,
+        name: name,
+        birthYear: year,
+      );
+    }
+    if (succeeded && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -851,9 +820,9 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
             title:
                 Text(widget.childId == null ? 'إضافة طفل' : 'تعديل ملف طفل')),
         body: SafeArea(
-            child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -871,8 +840,9 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
                     controller: _name,
                     maxLength: 40,
                     decoration: const InputDecoration(
-                        labelText: 'اسم الطفل التجريبي',
-                        prefixIcon: Icon(Icons.child_care_outlined)),
+                      labelText: 'اسم الطفل التجريبي',
+                      prefixIcon: Icon(Icons.child_care_outlined),
+                    ),
                     validator: (value) {
                       final name = (value ?? '').trim();
                       if (name.isEmpty) return 'أدخل اسمًا تجريبيًا';
@@ -886,8 +856,9 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
                     keyboardType: TextInputType.number,
                     maxLength: 4,
                     decoration: const InputDecoration(
-                        labelText: 'سنة الميلاد (اختياري)',
-                        prefixIcon: Icon(Icons.calendar_today_outlined)),
+                      labelText: 'سنة الميلاد (اختياري)',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                    ),
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
@@ -899,17 +870,28 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
                       return null;
                     },
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: Colors.red)),
-                  ],
+                  Obx(() {
+                    final error = childrenController.errorMessage.value;
+                    if (error == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(error,
+                          style: const TextStyle(color: Colors.red)),
+                    );
+                  }),
                   const SizedBox(height: 24),
-                  KButton(
-                      label: _saving ? 'جارٍ الحفظ...' : 'حفظ ملف الطفل',
-                      onPressed: _saving ? null : _save),
+                  Obx(() {
+                    final saving = childrenController.isSaving.value;
+                    return KButton(
+                      label: saving ? 'جارٍ الحفظ...' : 'حفظ ملف الطفل',
+                      onPressed: saving ? null : _save,
+                    );
+                  }),
                 ],
-              )),
-        )),
+              ),
+            ),
+          ),
+        ),
       );
 }
 
@@ -1143,7 +1125,7 @@ class ParentSettings extends StatelessWidget {
               final authController = Get.find<AuthController>();
               final succeeded = await authController.signOut();
               if (succeeded) {
-                Get.find<SelectedChildController>().clearSelectedChild();
+                Get.find<ChildrenController>().clearSession();
               } else if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

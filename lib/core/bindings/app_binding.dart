@@ -2,26 +2,42 @@ import 'package:get/get.dart';
 
 import '../../features/auth/controllers/auth_controller.dart';
 import '../../features/auth/services/auth_service.dart';
+import '../../features/children/controllers/children_controller.dart';
 import '../../features/children/controllers/selected_child_controller.dart';
+import '../../features/children/services/children_service.dart';
 
 class AppBinding extends Bindings {
   @override
   void dependencies() {
-    // تسجيل خدمة المصادقة مرة واحدة.
+    // Firebase Authentication
     Get.put<AuthService>(
       AuthService(),
       permanent: true,
     );
 
-    // تسجيل Controller المصادقة وربطه بالخدمة.
     Get.put<AuthController>(
       AuthController(Get.find<AuthService>()),
       permanent: true,
     );
 
-    // إدارة الطفل المحدد في واجهات التطبيق.
+    // Selected child state
     Get.put<SelectedChildController>(
       SelectedChildController(),
+      permanent: true,
+    );
+
+    // Children Firestore service
+    Get.put<ChildrenService>(
+      ChildrenService(),
+      permanent: true,
+    );
+
+    // Children state management
+    Get.put<ChildrenController>(
+      ChildrenController(
+        Get.find<ChildrenService>(),
+        Get.find<SelectedChildController>(),
+      ),
       permanent: true,
     );
   }
