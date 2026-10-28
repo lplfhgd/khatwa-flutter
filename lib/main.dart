@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
+import 'features/auth/controllers/auth_controller.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -283,7 +284,7 @@ class ParentAuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: Get.find<AuthController>().authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -320,10 +321,10 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthController authController = Get.find<AuthController>();
+
   bool _register = false;
-  bool _busy = false;
   bool _hidePassword = true;
-  String? _error;
 
   @override
   void dispose() {
@@ -332,136 +333,38 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     super.dispose();
   }
 
-  String _errorMessage(FirebaseAuthException error) {
-    switch (error.code) {
-      case 'email-already-in-use':
-        return 'هذا البريد مسجل بالفعل. جرّب تسجيل الدخول.';
-      case 'invalid-email':
-        return 'صيغة البريد الإلكتروني غير صحيحة.';
-      case 'weak-password':
-        return 'كلمة المرور ضعيفة؛ استخدم كلمة مرور أقوى.';
-      case 'wrong-password':
-      case 'user-not-found':
-      case 'invalid-credential':
-        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-      case 'too-many-requests':
-        return 'محاولات كثيرة. حاول مجددًا لاحقًا.';
-      case 'network-request-failed':
-        return 'تعذّر الاتصال بالإنترنت. حاول مجددًا.';
-      case 'operation-not-allowed':
-        return 'طريقة تسجيل الدخول غير مفعّلة في Firebase.';
-      default:
-        return 'تعذّر إكمال العملية (${error.code}). حاول مجددًا.';
-    }
-  }
-
   Future<void> _submit() async {
-    if (_busy || !_formKey.currentState!.validate()) {
+    if (authController.isLoading.value || !_formKey.currentState!.validate()) {
       return;
     }
 
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-
-    try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
-
-      late final UserCredential credential;
-
-      if (_register) {
-        // 1. إنشاء حساب ولي الأمر
-        credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } else {
-        // 2. تسجيل الدخول إلى حساب موجود
-        credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      }
-
-      final user = credential.user;
-
-      if (user == null) {
-        throw StateError('تعذر الحصول على بيانات المستخدم.');
-      }
-
-      // 3. مرجع مستند ولي الأمر في Firestore
-      final parentRef =
-          FirebaseFirestore.instance.collection('parents').doc(user.uid);
-
-      // 4. التحقق من وجود الملف
-      final parentSnapshot = await parentRef.get();
-
-      // 5. إنشاء الملف فقط إذا لم يكن موجودًا
-      if (!parentSnapshot.exists) {
-        await parentRef.set({
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'profileStatus': 'active',
-        });
-      }
-
-      // ParentAuthGate يستجيب لجلسة المستخدم تلقائيًا.
-    } on FirebaseAuthException catch (error) {
-      if (mounted) {
-        setState(() {
-          _error = _errorMessage(error);
-        });
-      }
-    } on FirebaseException catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'تم تسجيل الحساب، لكن تعذر الوصول إلى ملف ولي الأمر. '
-              'تحقق من الإنترنت وحاول تسجيل الدخول مجددًا.';
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'حدث خطأ غير متوقع. حاول مجددًا.';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-        });
-      }
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (_register) {
+      await authController.register(email: email, password: password);
+    } else {
+      await authController.signIn(email: email, password: password);
     }
+    // ParentAuthGate listens to auth changes and presents ParentShell.
   }
 
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
-      setState(
-          () => _error = 'اكتب بريدك الإلكتروني أولًا لإرسال رابط الاستعادة.');
+      authController.errorMessage.value =
+          'اكتب بريدك الإلكتروني أولًا لإرسال رابط الاستعادة.';
       return;
     }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'إذا كان البريد مرتبطًا بحساب، ستصلك رسالة استعادة كلمة المرور.')),
-        );
-      }
-    } on FirebaseAuthException catch (error) {
-      if (mounted) setState(() => _error = _errorMessage(error));
-    } catch (_) {
-      if (mounted) setState(() => _error = 'تعذّر إرسال الرسالة حاليًا.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+
+    final succeeded = await authController.resetPassword(email);
+    if (succeeded && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'إذا كان البريد مرتبطًا بحساب، ستصلك رسالة استعادة كلمة المرور.',
+          ),
+        ),
+      );
     }
   }
 
@@ -469,103 +372,132 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text(_register ? 'إنشاء حساب ولي الأمر' : 'دخول ولي الأمر')),
+        title: Text(_register ? 'إنشاء حساب ولي الأمر' : 'دخول ولي الأمر'),
+      ),
       body: SafeArea(
-          child: Center(
-              child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Image.asset('assets/images/khatwa_logo.png', height: 150),
-                  const SizedBox(height: 16),
-                  Text(_register ? 'أنشئ حسابك في خطوة' : 'أهلًا بك في خطوة',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Image.asset('assets/images/khatwa_logo.png', height: 150),
+                    const SizedBox(height: 16),
+                    Text(
+                      _register ? 'أنشئ حسابك في خطوة' : 'أهلًا بك في خطوة',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.bold,
-                          color: KColors.text)),
-                  const SizedBox(height: 8),
-                  const Text(
-                      'حساب ولي الأمر فقط • لا يحتاج الطفل إلى بريد إلكتروني',
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 26),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textDirection: TextDirection.ltr,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                        labelText: 'البريد الإلكتروني',
-                        prefixIcon: Icon(Icons.email_outlined)),
-                    validator: (value) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                            .hasMatch((value ?? '').trim())
-                        ? null
-                        : 'أدخل بريدًا إلكترونيًا صحيحًا',
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _hidePassword,
-                    textDirection: TextDirection.ltr,
-                    decoration: InputDecoration(
-                      labelText: 'كلمة المرور',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        onPressed: () =>
-                            setState(() => _hidePassword = !_hidePassword),
-                        icon: Icon(_hidePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined),
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        color: KColors.text,
                       ),
                     ),
-                    validator: (value) => (value ?? '').length >= 6
-                        ? null
-                        : 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
-                    onFieldSubmitted: (_) => _submit(),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_error!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center),
-                  ],
-                  const SizedBox(height: 24),
-                  KButton(
-                      label: _busy
-                          ? 'جارٍ المعالجة...'
-                          : (_register ? 'إنشاء حساب' : 'تسجيل الدخول'),
-                      onPressed: _busy ? null : _submit),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                              _register = !_register;
-                              _error = null;
-                            }),
-                    child: Text(_register
-                        ? 'لديك حساب بالفعل؟ تسجيل الدخول'
-                        : 'ليس لديك حساب؟ إنشاء حساب جديد'),
-                  ),
-                  if (!_register)
-                    TextButton(
-                      onPressed: _busy ? null : _resetPassword,
-                      child: const Text('نسيت كلمة المرور؟'),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'حساب ولي الأمر فقط • لا يحتاج الطفل إلى بريد إلكتروني',
+                      textAlign: TextAlign.center,
                     ),
-                  const SizedBox(height: 12),
-                  const Text(
+                    const SizedBox(height: 26),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textDirection: TextDirection.ltr,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'البريد الإلكتروني',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (value) =>
+                          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                  .hasMatch((value ?? '').trim())
+                              ? null
+                              : 'أدخل بريدًا إلكترونيًا صحيحًا',
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _hidePassword,
+                      textDirection: TextDirection.ltr,
+                      decoration: InputDecoration(
+                        labelText: 'كلمة المرور',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _hidePassword = !_hidePassword,
+                          ),
+                          icon: Icon(
+                            _hidePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (value) => (value ?? '').length >= 6
+                          ? null
+                          : 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+                      onFieldSubmitted: (_) => _submit(),
+                    ),
+                    Obx(() {
+                      final message = authController.errorMessage.value;
+                      if (message == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          message,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 24),
+                    Obx(() {
+                      final busy = authController.isLoading.value;
+                      return KButton(
+                        label: busy
+                            ? 'جارٍ المعالجة...'
+                            : (_register ? 'إنشاء حساب' : 'تسجيل الدخول'),
+                        onPressed: busy ? null : _submit,
+                      );
+                    }),
+                    const SizedBox(height: 10),
+                    Obx(() {
+                      final busy = authController.isLoading.value;
+                      return TextButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                authController.errorMessage.value = null;
+                                setState(() => _register = !_register);
+                              },
+                        child: Text(_register
+                            ? 'لديك حساب بالفعل؟ تسجيل الدخول'
+                            : 'ليس لديك حساب؟ إنشاء حساب جديد'),
+                      );
+                    }),
+                    if (!_register)
+                      Obx(() => TextButton(
+                            onPressed: authController.isLoading.value
+                                ? null
+                                : _resetPassword,
+                            child: const Text('نسيت كلمة المرور؟'),
+                          )),
+                    const SizedBox(height: 12),
+                    const Text(
                       'هذه نسخة تطويرية. لا تُدخل معلومات شخصية حقيقية عن الأطفال قبل اكتمال حماية البيانات.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                ],
-              )),
+                      style: TextStyle(color: Colors.blueGrey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-      ))),
+      ),
     );
   }
 }
@@ -1208,16 +1140,17 @@ class ParentSettings extends StatelessWidget {
             label: 'تسجيل خروج ولي الأمر',
             outlined: true,
             onPressed: () async {
-              try {
-                await FirebaseAuth.instance.signOut();
+              final authController = Get.find<AuthController>();
+              final succeeded = await authController.signOut();
+              if (succeeded) {
                 Get.find<SelectedChildController>().clearSelectedChild();
-              } on FirebaseAuthException catch (_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('تعذّر تسجيل الخروج. حاول مجددًا.')),
-                  );
-                }
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(authController.errorMessage.value ??
+                        'تعذّر تسجيل الخروج. حاول مجددًا.'),
+                  ),
+                );
               }
             }),
         const SizedBox(height: 10),
