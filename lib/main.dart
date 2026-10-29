@@ -5,6 +5,7 @@ import 'features/children/controllers/children_controller.dart';
 import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
 import 'features/aac/controllers/aac_controller.dart';
+import 'features/routine/controllers/routine_controller.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
@@ -902,7 +903,6 @@ class ParentHome extends StatelessWidget {
   final ValueChanged<int> navigate;
   @override
   Widget build(BuildContext context) {
-    final completed = store.routine.where((e) => e.complete).length;
     return ListView(padding: const EdgeInsets.all(20), children: [
       const Text('أهلًا بك في خطوة',
           style: TextStyle(
@@ -912,19 +912,35 @@ class ParentHome extends StatelessWidget {
       const SizedBox(height: 20),
       ChildProfilesSection(store: store),
       const SizedBox(height: 20),
-      KCard(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('روتين اليوم',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        LinearProgressIndicator(
-            value: store.routine.isEmpty ? 0 : completed / store.routine.length,
-            minHeight: 10,
-            borderRadius: BorderRadius.circular(8)),
-        const SizedBox(height: 8),
-        Text('$completed من ${store.routine.length} مهام مكتملة')
-      ])),
+      Obx(() {
+        final controller = Get.find<RoutineController>();
+
+        final completed = controller.completedCount;
+        final total = controller.routine.length;
+
+        return KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'روتين اليوم',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: controller.progress,
+                minHeight: 10,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              const SizedBox(height: 8),
+              Text('$completed من $total مهام مكتملة'),
+            ],
+          ),
+        );
+      }),
       const SizedBox(height: 18),
       const Text('إدارة سريعة',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
@@ -1032,73 +1048,158 @@ class ParentContent extends StatelessWidget {
 }
 
 class ParentRoutineScreen extends StatelessWidget {
-  const ParentRoutineScreen({super.key, required this.store});
+  const ParentRoutineScreen({
+    super.key,
+    required this.store,
+  });
+
+  // نبقيه مؤقتًا حتى لا نغيّر استدعاءات الشاشة الأخرى.
   final DemoStore store;
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('إدارة الروتين')),
-      body: AnimatedBuilder(
-          animation: store,
-          builder: (_, __) =>
-              ListView(padding: const EdgeInsets.all(20), children: [
-                KButton(
-                    label: 'إضافة خطوة للروتين',
-                    onPressed: () => showAddDialog(context,
-                        title: 'خطوة جديدة',
-                        hint: 'مثال: ارتداء الملابس',
-                        onSave: store.addRoutine)),
-                const SizedBox(height: 15),
-                ...store.routine.asMap().entries.map((entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: KCard(
-                        child: CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            secondary: Icon(entry.value.symbol,
-                                color: KColors.primary),
-                            title:
-                                Text('${entry.key + 1}. ${entry.value.label}'),
-                            subtitle:
-                                const Text('يمكنك تعليمها كمكتملة للتجربة'),
-                            value: entry.value.complete,
-                            onChanged: (_) =>
-                                store.toggleRoutine(entry.key))))),
-              ])));
+  Widget build(BuildContext context) {
+    final routineController = Get.find<RoutineController>();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('إدارة الروتين'),
+      ),
+      body: Obx(() {
+        final tasks = routineController.routine;
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            KButton(
+              label: 'إضافة خطوة للروتين',
+              onPressed: () => showAddDialog(
+                context,
+                title: 'خطوة جديدة',
+                hint: 'مثال: ارتداء الملابس',
+                onSave: routineController.addRoutine,
+              ),
+            ),
+            const SizedBox(height: 15),
+            ...tasks.asMap().entries.map((entry) {
+              final index = entry.key;
+              final task = entry.value;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: KCard(
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: Icon(
+                      task.symbol,
+                      color: KColors.primary,
+                    ),
+                    title: Text(
+                      '${index + 1}. ${task.label}',
+                    ),
+                    subtitle: const Text(
+                      'يمكنك تعليمها كمكتملة للتجربة',
+                    ),
+                    value: task.isCompleted,
+                    onChanged: (_) {
+                      routineController.toggleRoutine(index);
+                    },
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      }),
+    );
+  }
 }
 
 class ParentProgress extends StatelessWidget {
-  const ParentProgress({super.key, required this.store});
+  const ParentProgress({
+    super.key,
+    required this.store,
+  });
+
+  // نحتفظ به مؤقتًا حتى لا نغيّر استدعاءات ParentShell.
   final DemoStore store;
+
   @override
   Widget build(BuildContext context) {
-    final completed = store.routine.where((item) => item.complete).length;
-    return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('تقرير الأنشطة',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      const Text(
-          'هذا عرض تجريبي لمتابعة إنجاز الأنشطة، وليس تقييمًا أو تشخيصًا طبيًا.'),
-      const SizedBox(height: 24),
-      KCard(
-          child: Column(children: [
-        const Icon(Icons.insights, color: KColors.primary, size: 50),
+    final routineController = Get.find<RoutineController>();
+    final aacController = Get.find<AacController>();
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text(
+          'تقرير الأنشطة',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 12),
-        Text('$completed / ${store.routine.length}',
-            style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold)),
-        const Text('خطوات الروتين المنجزة'),
+        const Text(
+          'هذا عرض تجريبي لمتابعة إنجاز الأنشطة، وليس تقييمًا أو تشخيصًا طبيًا.',
+        ),
+        const SizedBox(height: 24),
+        Obx(() {
+          final completed = routineController.completedCount;
+          final total = routineController.routine.length;
+
+          return KCard(
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.insights,
+                  color: KColors.primary,
+                  size: 50,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$completed / $total',
+                  style: const TextStyle(
+                    fontSize: 38,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text('خطوات الروتين المنجزة'),
+                const SizedBox(height: 15),
+                LinearProgressIndicator(
+                  value: routineController.progress,
+                  minHeight: 12,
+                ),
+              ],
+            ),
+          );
+        }),
         const SizedBox(height: 15),
-        LinearProgressIndicator(
-            value: store.routine.isEmpty ? 0 : completed / store.routine.length,
-            minHeight: 12)
-      ])),
-      const SizedBox(height: 15),
-      KCard(
-          child: Column(children: [
-        const Text('بطاقات التواصل المتاحة',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        Text('${store.cards.length}',
-            style: const TextStyle(fontSize: 36, color: KColors.primary))
-      ])),
-    ]);
+        Obx(() {
+          final cardCount = aacController.cards.length;
+
+          return KCard(
+            child: Column(
+              children: [
+                const Text(
+                  'بطاقات التواصل المتاحة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '$cardCount',
+                  style: const TextStyle(
+                    fontSize: 36,
+                    color: KColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
   }
 }
 
@@ -1448,45 +1549,82 @@ class ChildAac extends StatelessWidget {
 
 class ChildRoutine extends StatelessWidget {
   const ChildRoutine({super.key, required this.store});
+
+  // نحتفظ به مؤقتًا حتى لا نغيّر استدعاءات ChildShell.
   final DemoStore store;
+
   @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.all(16), children: [
-        const Text('روتيني اليوم',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center),
-        const SizedBox(height: 16),
-        ...store.routine.asMap().entries.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-                onTap: () => store.toggleRoutine(item.key),
+  Widget build(BuildContext context) {
+    final routineController = Get.find<RoutineController>();
+
+    return Obx(() {
+      final tasks = routineController.routine;
+
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'روتيني اليوم',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ...tasks.asMap().entries.map((entry) {
+            final index = entry.key;
+            final task = entry.value;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: InkWell(
+                onTap: () => routineController.toggleRoutine(index),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   constraints: const BoxConstraints(minHeight: 92),
                   decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: KColors.border),
-                      borderRadius: BorderRadius.circular(24)),
-                  child: Row(children: [
-                    CircleAvatar(
+                    color: Colors.white,
+                    border: Border.all(color: KColors.border),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
                         backgroundColor: KColors.soft,
-                        child: Icon(item.value.symbol, color: KColors.primary)),
-                    const SizedBox(width: 13),
-                    Expanded(
-                        child: Text(item.value.label,
-                            style: const TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.bold))),
-                    Icon(
-                        item.value.complete
+                        child: Icon(
+                          task.symbol,
+                          color: KColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Text(
+                          task.label,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        task.isCompleted
                             ? Icons.check_circle
                             : Icons.radio_button_unchecked,
-                        color: item.value.complete
-                            ? Colors.green
-                            : Colors.blueGrey,
-                        size: 34)
-                  ]),
-                )))),
-      ]);
+                        color:
+                            task.isCompleted ? Colors.green : Colors.blueGrey,
+                        size: 34,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      );
+    });
+  }
 }
 
 class ChildActivities extends StatelessWidget {
