@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'features/children/controllers/children_controller.dart';
 import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
 import 'features/aac/controllers/aac_controller.dart';
 import 'features/routine/controllers/routine_controller.dart';
 import 'features/auth/controllers/auth_controller.dart';
-import 'features/auth/views/parent_auth_screen.dart';
 import 'shared/widgets/k_button.dart';
 import 'shared/widgets/k_card.dart';
+import 'features/auth/views/parent_auth_gate.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -166,7 +165,10 @@ class RoleScreen extends StatelessWidget {
                       subtitle: 'إدارة الطفل والمحتوى والمتابعة',
                       icon: Icons.family_restroom,
                       onTap: () => Get.to(
-                        () => ParentAuthGate(store: store),
+                        () => ParentAuthGate(
+                          authenticatedBuilder: (context) =>
+                              ParentShell(store: store),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -223,38 +225,6 @@ class _RoleTile extends StatelessWidget {
 }
 
 /// Requires a signed-in parent before allowing access to parent tools.
-class ParentAuthGate extends StatelessWidget {
-  const ParentAuthGate({super.key, required this.store});
-  final DemoStore store;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: Get.find<AuthController>().authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('حساب ولي الأمر')),
-            body: Center(
-                child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                  'تعذّر التحقق من جلسة الدخول. تأكد من الاتصال بالإنترنت وحاول مجددًا.\n${snapshot.error}',
-                  textAlign: TextAlign.center),
-            )),
-          );
-        }
-        if (snapshot.data == null) return const ParentAuthScreen();
-        return ParentShell(store: store);
-      },
-    );
-  }
-}
 
 class ParentShell extends StatefulWidget {
   const ParentShell({super.key, required this.store});
