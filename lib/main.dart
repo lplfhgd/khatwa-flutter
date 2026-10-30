@@ -7,6 +7,8 @@ import 'core/bindings/app_binding.dart';
 import 'features/aac/controllers/aac_controller.dart';
 import 'features/routine/controllers/routine_controller.dart';
 import 'features/auth/controllers/auth_controller.dart';
+import 'shared/widgets/k_button.dart';
+import 'shared/widgets/k_card.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -130,65 +132,6 @@ class _KhatwaAppState extends State<KhatwaApp> {
       home: RoleScreen(store: store),
     );
   }
-}
-
-class KButton extends StatelessWidget {
-  const KButton(
-      {super.key,
-      required this.label,
-      required this.onPressed,
-      this.outlined = false,
-      this.large = false});
-  final String label;
-  final VoidCallback? onPressed;
-  final bool outlined;
-  final bool large;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        height: large ? 72 : 52,
-        width: double.infinity,
-        child: outlined
-            ? OutlinedButton(
-                onPressed: onPressed,
-                style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: KColors.primary),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(large ? 24 : 14))),
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: large ? 20 : 16,
-                        fontWeight: FontWeight.bold)))
-            : FilledButton(
-                onPressed: onPressed,
-                style: FilledButton.styleFrom(
-                    backgroundColor: KColors.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(large ? 24 : 14))),
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: large ? 20 : 16,
-                        fontWeight: FontWeight.bold))),
-      );
-}
-
-class KCard extends StatelessWidget {
-  const KCard(
-      {super.key,
-      required this.child,
-      this.tint = Colors.white,
-      this.padding = 16});
-  final Widget child;
-  final Color tint;
-  final double padding;
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: EdgeInsets.all(padding),
-        decoration: BoxDecoration(
-            color: tint,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: KColors.border)),
-        child: child,
-      );
 }
 
 class RoleScreen extends StatelessWidget {
