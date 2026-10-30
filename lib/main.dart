@@ -9,6 +9,7 @@ import 'features/auth/controllers/auth_controller.dart';
 import 'shared/widgets/k_button.dart';
 import 'shared/widgets/k_card.dart';
 import 'features/auth/views/parent_auth_gate.dart';
+import 'features/parent/views/parent_shell.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -166,8 +167,15 @@ class RoleScreen extends StatelessWidget {
                       icon: Icons.family_restroom,
                       onTap: () => Get.to(
                         () => ParentAuthGate(
-                          authenticatedBuilder: (context) =>
-                              ParentShell(store: store),
+                          authenticatedBuilder: (context) => ParentShell(
+                            homeBuilder: (navigate) => ParentHome(
+                              store: store,
+                              navigate: navigate,
+                            ),
+                            content: ParentContent(store: store),
+                            progress: ParentProgress(store: store),
+                            settings: ParentSettings(store: store),
+                          ),
                         ),
                       ),
                     ),
@@ -225,56 +233,6 @@ class _RoleTile extends StatelessWidget {
 }
 
 /// Requires a signed-in parent before allowing access to parent tools.
-
-class ParentShell extends StatefulWidget {
-  const ParentShell({super.key, required this.store});
-  final DemoStore store;
-  @override
-  State<ParentShell> createState() => _ParentShellState();
-}
-
-class _ParentShellState extends State<ParentShell> {
-  int tab = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    // Open the authenticated parent's Firestore stream once per shell instance.
-    Get.find<ChildrenController>().startWatching();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-      animation: widget.store,
-      builder: (context, _) {
-        final pages = [
-          ParentHome(
-              store: widget.store,
-              navigate: (index) => setState(() => tab = index)),
-          ParentContent(store: widget.store),
-          ParentProgress(store: widget.store),
-          ParentSettings(store: widget.store)
-        ];
-        return Scaffold(
-          appBar: AppBar(
-              title: Text(['الرئيسية', 'المحتوى', 'التقدم', 'الإعدادات'][tab])),
-          body: pages[tab],
-          bottomNavigationBar: NavigationBar(
-              selectedIndex: tab,
-              onDestinationSelected: (index) => setState(() => tab = index),
-              destinations: const [
-                NavigationDestination(
-                    icon: Icon(Icons.home_outlined), label: 'الرئيسية'),
-                NavigationDestination(
-                    icon: Icon(Icons.auto_stories_outlined), label: 'المحتوى'),
-                NavigationDestination(
-                    icon: Icon(Icons.bar_chart_outlined), label: 'التقدم'),
-                NavigationDestination(
-                    icon: Icon(Icons.settings_outlined), label: 'الإعدادات'),
-              ]),
-        );
-      });
-}
 
 void showAddDialog(BuildContext context,
     {required String title,
