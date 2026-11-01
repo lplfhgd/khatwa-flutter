@@ -5,7 +5,6 @@ import 'features/children/controllers/selected_child_controller.dart';
 import 'core/bindings/app_binding.dart';
 import 'features/aac/controllers/aac_controller.dart';
 import 'features/routine/controllers/routine_controller.dart';
-import 'features/auth/controllers/auth_controller.dart';
 import 'shared/widgets/k_button.dart';
 import 'shared/widgets/k_card.dart';
 import 'features/auth/views/parent_auth_gate.dart';
@@ -13,6 +12,7 @@ import 'features/parent/views/parent_shell.dart';
 import 'features/parent/views/parent_home.dart';
 import 'features/parent/views/parent_content.dart';
 import 'features/parent/views/parent_progress.dart';
+import 'features/parent/views/parent_settings.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -195,7 +195,14 @@ class RoleScreen extends StatelessWidget {
                               ),
                             ),
                             progress: const ParentProgress(),
-                            settings: ParentSettings(store: store),
+                            settings: ParentSettings(
+                              onManageChildren: () => Get.to(
+                                () => ChildProfilesScreen(store: store),
+                              ),
+                              onManageDevices: () => Get.to(
+                                () => const ParentPairScreen(),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -598,23 +605,6 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
       );
 }
 
-class _Shortcut extends StatelessWidget {
-  const _Shortcut(
-      {required this.icon, required this.title, required this.onTap});
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: KCard(
-          child: ListTile(
-              leading: Icon(icon, color: KColors.primary, size: 29),
-              title: Text(title),
-              trailing: const Icon(Icons.chevron_left),
-              onTap: onTap)));
-}
-
 class ParentRoutineScreen extends StatelessWidget {
   const ParentRoutineScreen({
     super.key,
@@ -680,61 +670,6 @@ class ParentRoutineScreen extends StatelessWidget {
       }),
     );
   }
-}
-
-class ParentSettings extends StatelessWidget {
-  const ParentSettings({super.key, required this.store});
-  final DemoStore store;
-  @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.all(20), children: [
-        const Text('الإعدادات',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 15),
-        _Shortcut(
-            icon: Icons.child_care_outlined,
-            title: 'إدارة ملفات الأطفال',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => ChildProfilesScreen(store: store)))),
-        _Shortcut(
-            icon: Icons.devices_other_outlined,
-            title: 'الأجهزة المرتبطة (عرض توضيحي)',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ParentPairScreen()))),
-        const KCard(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('الخصوصية',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          SizedBox(height: 10),
-          Text(
-              'تسجيل ولي الأمر وملفات الأطفال مرتبطة بـFirebase. بطاقات AAC والروتين لا تزال تجريبية ومحلية، وربط جهاز الطفل غير مؤمّن بعد. استخدم بيانات أطفال وهمية خلال التطوير.')
-        ])),
-        const SizedBox(height: 12),
-        KButton(
-            label: 'تسجيل خروج ولي الأمر',
-            outlined: true,
-            onPressed: () async {
-              final authController = Get.find<AuthController>();
-              final succeeded = await authController.signOut();
-              if (succeeded) {
-                Get.find<ChildrenController>().clearSession();
-              } else if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(authController.errorMessage.value ??
-                        'تعذّر تسجيل الخروج. حاول مجددًا.'),
-                  ),
-                );
-              }
-            }),
-        const SizedBox(height: 10),
-        const KCard(
-            child: Text(
-                'تفضيلات الطفل الحسية، إدارة الأجهزة الحقيقية والإشعارات ستُفعّل في المراحل التالية.')),
-      ]);
 }
 
 class ParentPairScreen extends StatelessWidget {
