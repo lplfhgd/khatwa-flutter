@@ -11,6 +11,7 @@ import 'shared/widgets/k_card.dart';
 import 'features/auth/views/parent_auth_gate.dart';
 import 'features/parent/views/parent_shell.dart';
 import 'features/parent/views/parent_home.dart';
+import 'features/parent/views/parent_content.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -179,7 +180,19 @@ class RoleScreen extends StatelessWidget {
                                 () => const ParentPairScreen(),
                               ),
                             ),
-                            content: ParentContent(store: store),
+                            content: ParentContent(
+                              onAddAacCard: () {
+                                showAddDialog(
+                                  context,
+                                  title: 'بطاقة AAC جديدة',
+                                  hint: 'مثال: أريد كتابًا',
+                                  onSave: Get.find<AacController>().addCard,
+                                );
+                              },
+                              onOpenRoutine: () => Get.to(
+                                () => ParentRoutineScreen(store: store),
+                              ),
+                            ),
                             progress: ParentProgress(store: store),
                             settings: ParentSettings(store: store),
                           ),
@@ -599,67 +612,6 @@ class _Shortcut extends StatelessWidget {
               title: Text(title),
               trailing: const Icon(Icons.chevron_left),
               onTap: onTap)));
-}
-
-class ParentContent extends StatelessWidget {
-  const ParentContent({super.key, required this.store});
-  final DemoStore store;
-  @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.all(20), children: [
-        const Text('محتوى طفلك',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        const Text('أضف بطاقات التواصل والروتينات التي يحتاجها طفلك.'),
-        const SizedBox(height: 20),
-        KButton(
-            label: 'إضافة بطاقة تواصل',
-            onPressed: () => showAddDialog(context,
-                title: 'بطاقة AAC جديدة',
-                hint: 'مثال: أريد كتابًا',
-                onSave: Get.find<AacController>().addCard)),
-        const SizedBox(height: 12),
-        Obx(() {
-          final cards = Get.find<AacController>().cards;
-
-          return Column(
-            children: cards.map((card) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: KCard(
-                  child: ListTile(
-                    leading: Icon(
-                      card.symbol,
-                      color: KColors.primary,
-                      size: 32,
-                    ),
-                    title: Text(card.label),
-                    subtitle: Text(card.category),
-                  ),
-                ),
-              );
-            }).toList(),
-          );
-        }),
-        const SizedBox(height: 10),
-        KButton(
-            label: 'إدارة الروتين اليومي',
-            outlined: true,
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => ParentRoutineScreen(store: store)))),
-        const SizedBox(height: 16),
-        const KCard(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('القصص والألعاب',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-          SizedBox(height: 6),
-          Text(
-              'شاشات تجريبية مبدئية؛ إدارة المحتوى التفصيلية ستُضاف في المرحلة التالية.')
-        ])),
-      ]);
 }
 
 class ParentRoutineScreen extends StatelessWidget {
