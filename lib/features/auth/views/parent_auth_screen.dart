@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:khatwa/core/theme/k_colors.dart';
 
 import '../controllers/auth_controller.dart';
 import '../../../shared/widgets/k_button.dart';
@@ -87,7 +88,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                       style: const TextStyle(
                         fontSize: 25,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF263F43),
+                        color: KColors.text,
                       ),
                     ),
                     const SizedBox(height: 8),

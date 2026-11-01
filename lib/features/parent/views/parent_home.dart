@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../core/theme/k_colors.dart';
 import '../../routine/controllers/routine_controller.dart';
 import '../../../shared/widgets/k_card.dart';
 
@@ -30,7 +30,7 @@ class ParentHome extends StatelessWidget {
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF263F43),
+            color: KColors.text,
           ),
         ),
         const SizedBox(height: 8),
@@ -116,7 +116,7 @@ class _Shortcut extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: KCard(
         child: ListTile(
-          leading: Icon(icon, color: const Color(0xFF168F8B), size: 29),
+          leading: Icon(icon, color: KColors.primary, size: 29),
           title: Text(title),
           trailing: const Icon(Icons.chevron_left),
           onTap: onTap,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../core/theme/k_colors.dart';
 import '../../aac/controllers/aac_controller.dart';
 import '../../../shared/widgets/k_button.dart';
 import '../../../shared/widgets/k_card.dart';
@@ -50,7 +50,7 @@ class ParentContent extends StatelessWidget {
                   child: ListTile(
                     leading: Icon(
                       card.symbol,
-                      color: const Color(0xFF168F8B),
+                      color: KColors.primary,
                       size: 32,
                     ),
                     title: Text(card.label),

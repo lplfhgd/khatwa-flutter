@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../core/theme/k_colors.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../children/controllers/children_controller.dart';
 import '../../../shared/widgets/k_button.dart';
@@ -112,7 +112,7 @@ class _SettingsShortcut extends StatelessWidget {
         child: ListTile(
           leading: Icon(
             icon,
-            color: const Color(0xFF168F8B),
+            color: KColors.primary,
             size: 29,
           ),
           title: Text(title),

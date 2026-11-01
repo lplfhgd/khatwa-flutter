@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../core/theme/k_colors.dart';
 import '../../aac/controllers/aac_controller.dart';
 import '../../routine/controllers/routine_controller.dart';
 import '../../../shared/widgets/k_card.dart';
@@ -37,7 +37,7 @@ class ParentProgress extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.insights,
-                  color: Color(0xFF168F8B),
+                  color: KColors.primary,
                   size: 50,
                 ),
                 const SizedBox(height: 12),
@@ -53,6 +53,7 @@ class ParentProgress extends StatelessWidget {
                 LinearProgressIndicator(
                   value: routineController.progress,
                   minHeight: 12,
+                  color: KColors.primary,
                 ),
               ],
             ),
@@ -76,7 +77,7 @@ class ParentProgress extends StatelessWidget {
                   '$cardCount',
                   style: const TextStyle(
                     fontSize: 36,
-                    color: Color(0xFF168F8B),
+                    color: KColors.primary,
                   ),
                 ),
               ],
