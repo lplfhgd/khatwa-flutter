@@ -12,6 +12,7 @@ import 'features/auth/views/parent_auth_gate.dart';
 import 'features/parent/views/parent_shell.dart';
 import 'features/parent/views/parent_home.dart';
 import 'features/parent/views/parent_content.dart';
+import 'features/parent/views/parent_progress.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -193,7 +194,7 @@ class RoleScreen extends StatelessWidget {
                                 () => ParentRoutineScreen(store: store),
                               ),
                             ),
-                            progress: ParentProgress(store: store),
+                            progress: const ParentProgress(),
                             settings: ParentSettings(store: store),
                           ),
                         ),
@@ -677,95 +678,6 @@ class ParentRoutineScreen extends StatelessWidget {
           ],
         );
       }),
-    );
-  }
-}
-
-class ParentProgress extends StatelessWidget {
-  const ParentProgress({
-    super.key,
-    required this.store,
-  });
-
-  // نحتفظ به مؤقتًا حتى لا نغيّر استدعاءات ParentShell.
-  final DemoStore store;
-
-  @override
-  Widget build(BuildContext context) {
-    final routineController = Get.find<RoutineController>();
-    final aacController = Get.find<AacController>();
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'تقرير الأنشطة',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'هذا عرض تجريبي لمتابعة إنجاز الأنشطة، وليس تقييمًا أو تشخيصًا طبيًا.',
-        ),
-        const SizedBox(height: 24),
-        Obx(() {
-          final completed = routineController.completedCount;
-          final total = routineController.routine.length;
-
-          return KCard(
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.insights,
-                  color: KColors.primary,
-                  size: 50,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '$completed / $total',
-                  style: const TextStyle(
-                    fontSize: 38,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text('خطوات الروتين المنجزة'),
-                const SizedBox(height: 15),
-                LinearProgressIndicator(
-                  value: routineController.progress,
-                  minHeight: 12,
-                ),
-              ],
-            ),
-          );
-        }),
-        const SizedBox(height: 15),
-        Obx(() {
-          final cardCount = aacController.cards.length;
-
-          return KCard(
-            child: Column(
-              children: [
-                const Text(
-                  'بطاقات التواصل المتاحة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '$cardCount',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    color: KColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
     );
   }
 }
