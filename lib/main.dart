@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'core/bindings/app_binding.dart';
-import 'features/role/views/role_screen.dart';
+import 'features/startup/views/app_start_screen.dart';
 import 'core/theme/k_colors.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
@@ -56,7 +56,7 @@ class _KhatwaAppState extends State<KhatwaApp> {
       ),
       builder: (context, child) =>
           Directionality(textDirection: TextDirection.rtl, child: child!),
-      home: const RoleScreen(),
+      home: const AppStartScreen(),
     );
   }
 }

@@ -7,6 +7,9 @@ import '../../features/children/controllers/selected_child_controller.dart';
 import '../../features/routine/controllers/routine_controller.dart';
 import '../../features/aac/controllers/aac_controller.dart';
 import '../../features/children/services/children_service.dart';
+import '../../features/pairing/controllers/pairing_controller.dart';
+import '../../features/pairing/services/pairing_service.dart';
+import '../../features/pairing/services/linked_child_storage.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -38,6 +41,24 @@ class AppBinding extends Bindings {
     Get.put<ChildrenController>(
       ChildrenController(
         Get.find<ChildrenService>(),
+        Get.find<SelectedChildController>(),
+      ),
+      permanent: true,
+    );
+    // Device pairing service
+    Get.put<PairingService>(
+      PairingService(),
+      permanent: true,
+    );
+
+// Device pairing state management
+    Get.put<LinkedChildStorage>(
+      LinkedChildStorage(),
+      permanent: true,
+    );
+    Get.put<PairingController>(
+      PairingController(
+        Get.find<PairingService>(),
         Get.find<SelectedChildController>(),
       ),
       permanent: true,
