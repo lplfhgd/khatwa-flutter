@@ -10,6 +10,7 @@ import 'shared/widgets/k_button.dart';
 import 'shared/widgets/k_card.dart';
 import 'features/auth/views/parent_auth_gate.dart';
 import 'features/parent/views/parent_shell.dart';
+import 'features/parent/views/parent_home.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 
@@ -169,8 +170,14 @@ class RoleScreen extends StatelessWidget {
                         () => ParentAuthGate(
                           authenticatedBuilder: (context) => ParentShell(
                             homeBuilder: (navigate) => ParentHome(
-                              store: store,
                               navigate: navigate,
+                              childProfiles: ChildProfilesSection(store: store),
+                              onOpenRoutine: () => Get.to(
+                                () => ParentRoutineScreen(store: store),
+                              ),
+                              onOpenPairing: () => Get.to(
+                                () => const ParentPairScreen(),
+                              ),
                             ),
                             content: ParentContent(store: store),
                             progress: ParentProgress(store: store),
@@ -575,78 +582,6 @@ class _ChildProfileEditorState extends State<ChildProfileEditor> {
           ),
         ),
       );
-}
-
-class ParentHome extends StatelessWidget {
-  const ParentHome({super.key, required this.store, required this.navigate});
-  final DemoStore store;
-  final ValueChanged<int> navigate;
-  @override
-  Widget build(BuildContext context) {
-    return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('أهلًا بك في خطوة',
-          style: TextStyle(
-              fontSize: 26, fontWeight: FontWeight.bold, color: KColors.text)),
-      const SizedBox(height: 8),
-      const Text('تابع رحلة طفلك، خطوة بخطوة'),
-      const SizedBox(height: 20),
-      ChildProfilesSection(store: store),
-      const SizedBox(height: 20),
-      Obx(() {
-        final controller = Get.find<RoutineController>();
-
-        final completed = controller.completedCount;
-        final total = controller.routine.length;
-
-        return KCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'روتين اليوم',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: controller.progress,
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              const SizedBox(height: 8),
-              Text('$completed من $total مهام مكتملة'),
-            ],
-          ),
-        );
-      }),
-      const SizedBox(height: 18),
-      const Text('إدارة سريعة',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      _Shortcut(
-          icon: Icons.chat_bubble_outline,
-          title: 'بطاقات التواصل AAC',
-          onTap: () => navigate(1)),
-      _Shortcut(
-          icon: Icons.calendar_month_outlined,
-          title: 'إدارة الروتين المصور',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => ParentRoutineScreen(store: store)))),
-      _Shortcut(
-          icon: Icons.link_outlined,
-          title: 'ربط جهاز الطفل',
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const ParentPairScreen()))),
-      _Shortcut(
-          icon: Icons.bar_chart_outlined,
-          title: 'تقارير وملاحظات التقدم',
-          onTap: () => navigate(2)),
-    ]);
-  }
 }
 
 class _Shortcut extends StatelessWidget {
