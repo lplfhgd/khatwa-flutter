@@ -1,9 +1,16 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../aac/views/child_aac.dart';
 import '../../activities/views/child_activities.dart';
 import '../../children/controllers/selected_child_controller.dart';
+import '../../pairing/models/linked_child_model.dart';
+import '../../pairing/services/linked_child_storage.dart';
+import '../../pairing/services/linked_device_service.dart';
+import '../../role/views/role_screen.dart';
 import '../../routine/views/child_routine.dart';
 import 'child_home.dart';
 
@@ -15,7 +22,79 @@ class ChildShell extends StatefulWidget {
 }
 
 class _ChildShellState extends State<ChildShell> {
+  final LinkedChildStorage _linkedChildStorage = Get.find<LinkedChildStorage>();
+
+  final LinkedDeviceService _linkedDeviceService =
+      Get.find<LinkedDeviceService>();
+
+  StreamSubscription<bool>? _deviceSubscription;
+
   int tab = 0;
+  bool _isRevoking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDeviceMonitoring();
+  }
+
+  Future<void> _startDeviceMonitoring() async {
+    final LinkedChildModel? linkedChild = await _linkedChildStorage.read();
+
+    if (linkedChild == null || !mounted) {
+      return;
+    }
+
+    _deviceSubscription =
+        _linkedDeviceService.watchDeviceActive(linkedChild).listen(
+      (isActive) {
+        if (!isActive) {
+          _handleDeviceRevoked();
+        }
+      },
+      onError: (_) {
+        // إذا انقطع الإنترنت لا نلغي الربط المحلي.
+        // سيستمر التطبيق بالعمل، وسيعود الـStream للمراقبة
+        // عند استعادة الاتصال.
+      },
+    );
+  }
+
+  Future<void> _handleDeviceRevoked() async {
+    if (_isRevoking) {
+      return;
+    }
+
+    _isRevoking = true;
+
+    await _deviceSubscription?.cancel();
+    _deviceSubscription = null;
+
+    await _linkedChildStorage.clear();
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null && currentUser.isAnonymous) {
+      await FirebaseAuth.instance.signOut();
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const RoleScreen(),
+      ),
+      (route) => false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _deviceSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

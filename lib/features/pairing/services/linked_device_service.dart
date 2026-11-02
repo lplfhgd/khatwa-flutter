@@ -55,6 +55,35 @@ class LinkedDeviceService {
     }
   }
 
+  Stream<bool> watchDeviceActive(LinkedChildModel child) {
+    final user = _auth.currentUser;
+
+    if (user == null || !user.isAnonymous) {
+      return Stream<bool>.value(false);
+    }
+
+    final deviceRef = _firestore
+        .collection('parents')
+        .doc(child.parentId)
+        .collection('children')
+        .doc(child.childId)
+        .collection('linkedDevices')
+        .doc(user.uid);
+
+    return deviceRef.snapshots().map((snapshot) {
+      if (!snapshot.exists) {
+        return false;
+      }
+
+      final data = snapshot.data();
+
+      if (data == null) {
+        return false;
+      }
+
+      return data['active'] == true;
+    });
+  }
   // ============================================================
   // Parent device management
   // ============================================================
