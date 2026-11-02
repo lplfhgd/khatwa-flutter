@@ -16,6 +16,8 @@ class PairingService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
+  static const Duration _pairingCodeLifetime = Duration(minutes: 9);
+
   CollectionReference<Map<String, dynamic>> get _pairingCodes =>
       _firestore.collection('pairingCodes');
 
@@ -57,49 +59,50 @@ class PairingService {
       throw StateError('لم يتم العثور على ملف الطفل.');
     }
 
-    for (var attempt = 0; attempt < 5; attempt++) {
-      final code = _generateCode();
-      final pairingRef = _pairingCodes.doc(code);
+    final code = _generateCode();
+    final pairingRef = _pairingCodes.doc(code);
 
-      final expiresAt = DateTime.now().add(
-        const Duration(minutes: 10),
+    final expiresAt = DateTime.now().add(
+      _pairingCodeLifetime,
+    );
+
+    try {
+      await pairingRef.set({
+        'parentId': user.uid,
+        'childId': normalizedChildId,
+        'childName': normalizedChildName,
+        'used': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'claimedBy': null,
+        'claimedAt': null,
+      });
+
+      return PairingModel(
+        code: code,
+        parentId: user.uid,
+        childId: normalizedChildId,
+        childName: normalizedChildName,
+        expiresAt: expiresAt,
+        used: false,
       );
-
-      try {
-        await pairingRef.set({
-          'parentId': user.uid,
-          'childId': normalizedChildId,
-          'childName': normalizedChildName,
-          'used': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'expiresAt': Timestamp.fromDate(expiresAt),
-          'claimedBy': null,
-          'claimedAt': null,
-        });
-
-        return PairingModel(
-          code: code,
-          parentId: user.uid,
-          childId: normalizedChildId,
-          childName: normalizedChildName,
-          expiresAt: expiresAt,
-          used: false,
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        throw StateError(
+          'تعذر إنشاء رمز الربط. حاول إنشاء رمز جديد.',
         );
-      } on FirebaseException catch (error) {
-        // إذا كان الرمز موجودًا مسبقًا، فإن set تصبح update.
-        // قواعد Firestore تمنع ولي الأمر من تحديث رمز موجود،
-        // لذلك نجرب رقمًا جديدًا.
-        if (error.code == 'permission-denied') {
-          continue;
-        }
-
-        if (attempt == 4) {
-          throw StateError('تعذر إنشاء رمز الربط. حاول مجددًا.');
-        }
       }
-    }
 
-    throw StateError('تعذر إنشاء رمز ربط فريد. حاول مجددًا.');
+      if (error.code == 'unavailable') {
+        throw StateError(
+          'تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مجددًا.',
+        );
+      }
+
+      throw StateError(
+        'تعذر إنشاء رمز الربط. حاول مجددًا.',
+      );
+    }
   }
 
   Future<LinkedChildModel> consumePairingCode(String code) async {
@@ -127,66 +130,71 @@ class PairingService {
     final pairingRef = _pairingCodes.doc(normalizedCode);
 
     try {
-      final linkedChild = await _firestore
-          .runTransaction<LinkedChildModel>((transaction) async {
-        final snapshot = await transaction.get(pairingRef);
+      return await _firestore.runTransaction<LinkedChildModel>(
+        (transaction) async {
+          final snapshot = await transaction.get(pairingRef);
 
-        if (!snapshot.exists) {
-          throw StateError('رمز الربط غير صحيح.');
-        }
+          if (!snapshot.exists) {
+            throw StateError('رمز الربط غير صحيح.');
+          }
 
-        final data = snapshot.data();
+          final data = snapshot.data();
 
-        if (data == null) {
-          throw StateError('بيانات الربط غير صالحة.');
-        }
+          if (data == null) {
+            throw StateError('بيانات الربط غير صالحة.');
+          }
 
-        final used = data['used'] == true;
-        final expiresAt = data['expiresAt'];
+          final used = data['used'] == true;
+          final expiresAt = data['expiresAt'];
 
-        if (used) {
-          throw StateError('تم استخدام رمز الربط مسبقًا.');
-        }
+          if (used) {
+            throw StateError('تم استخدام رمز الربط مسبقًا.');
+          }
 
-        if (expiresAt is! Timestamp) {
-          throw StateError('بيانات صلاحية الرمز غير صالحة.');
-        }
+          if (expiresAt is! Timestamp) {
+            throw StateError('بيانات صلاحية الرمز غير صالحة.');
+          }
 
-        if (expiresAt.toDate().isBefore(DateTime.now())) {
-          throw StateError('انتهت صلاحية رمز الربط.');
-        }
+          if (expiresAt.toDate().isBefore(DateTime.now())) {
+            throw StateError('انتهت صلاحية رمز الربط.');
+          }
 
-        final parentId = data['parentId'];
-        final childId = data['childId'];
-        final childName = data['childName'];
+          final parentId = data['parentId'];
+          final childId = data['childId'];
+          final childName = data['childName'];
 
-        if (parentId is! String ||
-            parentId.isEmpty ||
-            childId is! String ||
-            childId.isEmpty ||
-            childName is! String ||
-            childName.isEmpty) {
-          throw StateError('بيانات الربط غير صالحة.');
-        }
+          if (parentId is! String ||
+              parentId.isEmpty ||
+              childId is! String ||
+              childId.isEmpty ||
+              childName is! String ||
+              childName.isEmpty) {
+            throw StateError('بيانات الربط غير صالحة.');
+          }
 
-        transaction.update(pairingRef, {
-          'used': true,
-          'claimedBy': user!.uid,
-          'claimedAt': FieldValue.serverTimestamp(),
-        });
+          transaction.update(pairingRef, {
+            'used': true,
+            'claimedBy': user!.uid,
+            'claimedAt': FieldValue.serverTimestamp(),
+          });
 
-        return LinkedChildModel(
-          parentId: parentId,
-          childId: childId,
-          childName: childName,
-        );
-      });
-
-      return linkedChild;
+          return LinkedChildModel(
+            parentId: parentId,
+            childId: childId,
+            childName: childName,
+          );
+        },
+      );
     } on FirebaseException catch (error) {
       if (error.code == 'permission-denied') {
         throw StateError(
           'رمز الربط غير صالح أو انتهت صلاحيته.',
+        );
+      }
+
+      if (error.code == 'unavailable') {
+        throw StateError(
+          'تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مجددًا.',
         );
       }
 

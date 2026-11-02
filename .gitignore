@@ -71,3 +71,4 @@ ui-debug.log
 # Android and Gradle generated build files
 /android/build/
 /android/.gradle/
+android/.kotlin/

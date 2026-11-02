@@ -83,7 +83,7 @@ class ParentPairScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     const Text(
-                      'هذا الرمز صالح لمدة 10 دقائق ومخصص لربط جهاز الطفل المحدد.',
+                      'هذا الرمز صالح لمدة 9 دقائق ويُستخدم مرة واحدة فقط لربط جهاز الطفل المحدد.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 26),

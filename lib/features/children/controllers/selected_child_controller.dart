@@ -1,23 +1,28 @@
 import 'package:get/get.dart';
 
 class SelectedChildController extends GetxController {
-  final childName = 'سامي'.obs;
+  final childName = ''.obs;
   final selectedChildId = RxnString();
 
   void selectChild(String id, String name) {
-    selectedChildId.value = id;
-    childName.value = name;
+    final cleanedId = id.trim();
+    final cleanedName = name.trim();
+
+    if (cleanedId.isEmpty || cleanedName.isEmpty) return;
+
+    selectedChildId.value = cleanedId;
+    childName.value = cleanedName;
   }
 
   void clearSelectedChild() {
     selectedChildId.value = null;
-    childName.value = 'سامي';
+    childName.value = '';
   }
 
   void renameChild(String name) {
     final cleaned = name.trim();
 
-    if (cleaned.isEmpty) return;
+    if (cleaned.isEmpty || selectedChildId.value == null) return;
 
     childName.value = cleaned;
   }
