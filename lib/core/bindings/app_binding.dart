@@ -10,6 +10,7 @@ import '../../features/children/services/children_service.dart';
 import '../../features/pairing/controllers/pairing_controller.dart';
 import '../../features/pairing/services/pairing_service.dart';
 import '../../features/pairing/services/linked_child_storage.dart';
+import '../../features/pairing/services/linked_device_service.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -54,6 +55,10 @@ class AppBinding extends Bindings {
 // Device pairing state management
     Get.put<LinkedChildStorage>(
       LinkedChildStorage(),
+      permanent: true,
+    );
+    Get.put<LinkedDeviceService>(
+      LinkedDeviceService(),
       permanent: true,
     );
     Get.put<PairingController>(

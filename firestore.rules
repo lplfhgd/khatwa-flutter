@@ -27,8 +27,69 @@ service cloud.firestore {
     // =========================
 
     match /parents/{parentUid} {
+
       allow read, create, update, delete:
         if isParent(parentUid);
+
+      // =========================
+      // Linked child devices
+      // =========================
+
+      match /children/{childId}/linkedDevices/{deviceId} {
+
+        // ولي الأمر يستطيع إدارة أجهزة أطفاله.
+// جهاز الطفل يستطيع قراءة سجل جهازه فقط.
+allow read: if isParent(parentUid)
+  || (
+    isAnonymousUser()
+    && deviceId == request.auth.uid
+  );
+
+allow update, delete:
+  if isParent(parentUid);
+
+        // جهاز الطفل يستطيع إنشاء سجل جهازه فقط،
+        // وبعد استهلاك رمز ربط صحيح في نفس العملية.
+        allow create: if isAnonymousUser()
+
+          && deviceId == request.auth.uid
+
+          && request.resource.data.keys().hasOnly([
+            'active',
+            'pairingCode',
+            'linkedAt',
+            'lastSeenAt'
+          ])
+
+          && request.resource.data.active == true
+
+          && request.resource.data.pairingCode is string
+
+          && request.resource.data.pairingCode.matches(
+            '^[0-9]{6}$'
+          )
+
+          && request.resource.data.linkedAt == request.time
+
+          && request.resource.data.lastSeenAt == request.time
+
+          // نقرأ حالة رمز الربط بعد تنفيذ الـ transaction.
+          && getAfter(
+            /databases/$(database)/documents/pairingCodes/$(request.resource.data.pairingCode)
+          ).data.used == true
+
+          && getAfter(
+            /databases/$(database)/documents/pairingCodes/$(request.resource.data.pairingCode)
+          ).data.claimedBy == request.auth.uid
+
+          && getAfter(
+            /databases/$(database)/documents/pairingCodes/$(request.resource.data.pairingCode)
+          ).data.parentId == parentUid
+
+          && getAfter(
+            /databases/$(database)/documents/pairingCodes/$(request.resource.data.pairingCode)
+          ).data.childId == childId;
+      }
 
       match /{document=**} {
         allow read, create, update, delete:
@@ -44,10 +105,8 @@ service cloud.firestore {
 
       allow create: if isRegisteredParent()
 
-        // الرمز يجب أن يكون 6 أرقام.
         && code.matches('^[0-9]{6}$')
 
-        // لا يسمح بحقوق إضافية غير المتوقعة.
         && request.resource.data.keys().hasOnly([
           'parentId',
           'childId',
@@ -59,52 +118,43 @@ service cloud.firestore {
           'claimedAt'
         ])
 
-        // ولي الأمر لا يستطيع إنشاء رمز باسم مستخدم آخر.
         && request.resource.data.parentId == request.auth.uid
 
-        // الطفل المحدد يجب أن يكون تابعًا لولي الأمر.
         && exists(
           /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(request.resource.data.childId)
         )
 
-        // الحالة الأولية للرمز.
         && request.resource.data.used == false
         && request.resource.data.claimedBy == null
         && request.resource.data.claimedAt == null
 
-        // createdAt يجب أن يأتي من السيرفر.
         && request.resource.data.createdAt == request.time
 
-        // صلاحية مستقبلية لا تتجاوز 10 دقائق.
         && request.resource.data.expiresAt > request.time
+
         && request.resource.data.expiresAt <=
           request.time + duration.value(10, 'm');
 
-      // لا نسمح بتحميل قائمة الرموز.
       allow list: if false;
 
-      // قراءة رمز محدد فقط.
       allow get: if isSignedIn()
         && (
           resource.data.parentId == request.auth.uid
           || isAnonymousUser()
         );
 
-      // جهاز الطفل المجهول فقط يستطيع استهلاك الرمز.
       allow update: if isAnonymousUser()
 
-        // الرمز لم يستخدم بعد وما زال صالحًا.
         && resource.data.used == false
+
         && resource.data.expiresAt > request.time
 
-        // بعد الاستهلاك يصبح مستخدمًا.
         && request.resource.data.used == true
 
-        // تسجيل الجهاز الذي استخدم الرمز.
         && request.resource.data.claimedBy == request.auth.uid
+
         && request.resource.data.claimedAt == request.time
 
-        // لا يسمح بتغيير أي معلومات أخرى.
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
             'used',

@@ -127,6 +127,7 @@ class PairingService {
       throw StateError('يجب استخدام حساب جهاز الطفل لإتمام الربط.');
     }
 
+    final deviceUid = user.uid;
     final pairingRef = _pairingCodes.doc(normalizedCode);
 
     try {
@@ -172,10 +173,25 @@ class PairingService {
             throw StateError('بيانات الربط غير صالحة.');
           }
 
+          final deviceRef = _firestore
+              .collection('parents')
+              .doc(parentId)
+              .collection('children')
+              .doc(childId)
+              .collection('linkedDevices')
+              .doc(deviceUid);
+
           transaction.update(pairingRef, {
             'used': true,
-            'claimedBy': user!.uid,
+            'claimedBy': deviceUid,
             'claimedAt': FieldValue.serverTimestamp(),
+          });
+
+          transaction.set(deviceRef, {
+            'active': true,
+            'pairingCode': normalizedCode,
+            'linkedAt': FieldValue.serverTimestamp(),
+            'lastSeenAt': FieldValue.serverTimestamp(),
           });
 
           return LinkedChildModel(
