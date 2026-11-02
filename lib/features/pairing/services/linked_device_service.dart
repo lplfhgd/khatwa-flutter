@@ -84,6 +84,38 @@ class LinkedDeviceService {
       return data['active'] == true;
     });
   }
+
+  Future<void> updateLastSeen(LinkedChildModel child) async {
+    final user = _auth.currentUser;
+
+    if (user == null || !user.isAnonymous) {
+      return;
+    }
+
+    final deviceRef = _firestore
+        .collection('parents')
+        .doc(child.parentId)
+        .collection('children')
+        .doc(child.childId)
+        .collection('linkedDevices')
+        .doc(user.uid);
+
+    try {
+      await deviceRef.update({
+        'lastSeenAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (error) {
+      // إذا كان الجهاز قد أُلغي ربطه، لا نحاول إعادة تفعيله
+      // ولا نعتبر فشل الـ heartbeat سببًا لتعطيل التطبيق.
+      if (error.code == 'permission-denied' ||
+          error.code == 'not-found' ||
+          error.code == 'unavailable') {
+        return;
+      }
+
+      rethrow;
+    }
+  }
   // ============================================================
   // Parent device management
   // ============================================================

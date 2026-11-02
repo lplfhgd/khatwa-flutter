@@ -45,7 +45,22 @@ allow read: if isParent(parentUid)
     && deviceId == request.auth.uid
   );
 
-allow update, delete:
+// ولي الأمر يستطيع تعديل أو حذف الجهاز.
+// جهاز الطفل يستطيع تحديث lastSeenAt فقط في سجل جهازه.
+allow update: if isParent(parentUid)
+  || (
+    isAnonymousUser()
+    && deviceId == request.auth.uid
+    && resource.data.active == true
+    && request.resource.data.active == true
+    && request.resource.data.lastSeenAt == request.time
+    && request.resource.data.diff(resource.data).affectedKeys()
+      .hasOnly([
+        'lastSeenAt'
+      ])
+  );
+
+allow delete:
   if isParent(parentUid);
 
         // جهاز الطفل يستطيع إنشاء سجل جهازه فقط،

@@ -230,6 +230,11 @@ class ParentPairScreen extends StatelessWidget {
                     children: devices.map((device) {
                       final data = device.data();
                       final isActive = data['active'] == true;
+                      final lastSeenAt = data['lastSeenAt'];
+
+                      final lastSeenText = _formatLastSeen(
+                        lastSeenAt is Timestamp ? lastSeenAt : null,
+                      );
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -269,14 +274,29 @@ class ParentPairScreen extends StatelessWidget {
                                     const SizedBox(height: 4),
                                     Text(
                                       isActive
-                                          ? 'مرتبط ونشط'
+                                          ? lastSeenText
                                           : 'تم إلغاء الربط',
                                       style: TextStyle(
                                         color: isActive
                                             ? KColors.primary
                                             : Colors.grey,
+                                        fontWeight: isActive &&
+                                                lastSeenText == 'نشط الآن'
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
                                       ),
                                     ),
+                                    if (isActive &&
+                                        lastSeenText != 'نشط الآن') ...[
+                                      const SizedBox(height: 3),
+                                      const Text(
+                                        'مرتبط',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -310,6 +330,47 @@ class ParentPairScreen extends StatelessWidget {
         }),
       ),
     );
+  }
+
+  String _formatLastSeen(Timestamp? timestamp) {
+    if (timestamp == null) {
+      return 'آخر نشاط غير معروف';
+    }
+
+    final now = DateTime.now();
+    final lastSeen = timestamp.toDate();
+    final difference = now.difference(lastSeen);
+
+    if (difference.isNegative || difference.inSeconds < 60) {
+      return 'نشط الآن';
+    }
+
+    if (difference.inMinutes < 2) {
+      return 'آخر نشاط منذ دقيقة';
+    }
+
+    if (difference.inMinutes < 60) {
+      return 'آخر نشاط منذ ${difference.inMinutes} دقائق';
+    }
+
+    if (difference.inHours < 2) {
+      return 'آخر نشاط منذ ساعة';
+    }
+
+    if (difference.inHours < 24) {
+      return 'آخر نشاط منذ ${difference.inHours} ساعات';
+    }
+
+    if (difference.inDays < 2) {
+      return 'آخر نشاط منذ يوم';
+    }
+
+    if (difference.inDays < 7) {
+      return 'آخر نشاط منذ ${difference.inDays} أيام';
+    }
+
+    return 'آخر نشاط: '
+        '${lastSeen.day}/${lastSeen.month}/${lastSeen.year}';
   }
 
   Future<void> _confirmRevoke({

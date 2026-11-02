@@ -28,6 +28,9 @@ class _ChildShellState extends State<ChildShell> {
       Get.find<LinkedDeviceService>();
 
   StreamSubscription<bool>? _deviceSubscription;
+  Timer? _heartbeatTimer;
+
+  LinkedChildModel? _linkedChild;
 
   int tab = 0;
   bool _isRevoking = false;
@@ -45,6 +48,8 @@ class _ChildShellState extends State<ChildShell> {
       return;
     }
 
+    _linkedChild = linkedChild;
+
     _deviceSubscription =
         _linkedDeviceService.watchDeviceActive(linkedChild).listen(
       (isActive) {
@@ -58,6 +63,34 @@ class _ChildShellState extends State<ChildShell> {
         // عند استعادة الاتصال.
       },
     );
+
+    await _sendHeartbeat();
+
+    if (!mounted || _isRevoking) {
+      return;
+    }
+
+    _heartbeatTimer = Timer.periodic(
+      const Duration(minutes: 2),
+      (_) {
+        _sendHeartbeat();
+      },
+    );
+  }
+
+  Future<void> _sendHeartbeat() async {
+    final linkedChild = _linkedChild;
+
+    if (linkedChild == null || _isRevoking) {
+      return;
+    }
+
+    try {
+      await _linkedDeviceService.updateLastSeen(linkedChild);
+    } catch (_) {
+      // فشل تحديث آخر نشاط لا يجب أن يعطل تجربة الطفل.
+      // ستتم المحاولة مجددًا في الـ heartbeat التالي.
+    }
   }
 
   Future<void> _handleDeviceRevoked() async {
@@ -66,6 +99,9 @@ class _ChildShellState extends State<ChildShell> {
     }
 
     _isRevoking = true;
+
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
 
     await _deviceSubscription?.cancel();
     _deviceSubscription = null;
@@ -92,7 +128,9 @@ class _ChildShellState extends State<ChildShell> {
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
     _deviceSubscription?.cancel();
+
     super.dispose();
   }
 
