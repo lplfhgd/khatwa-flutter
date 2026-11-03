@@ -7,9 +7,37 @@ import '../../../shared/widgets/k_button.dart';
 import '../../children/controllers/selected_child_controller.dart';
 import '../controllers/pairing_controller.dart';
 import '../services/linked_device_service.dart';
+import 'dart:async';
 
-class ParentPairScreen extends StatelessWidget {
+class ParentPairScreen extends StatefulWidget {
   const ParentPairScreen({super.key});
+
+  @override
+  State<ParentPairScreen> createState() => _ParentPairScreenState();
+}
+
+class _ParentPairScreenState extends State<ParentPairScreen> {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -370,12 +398,8 @@ class ParentPairScreen extends StatelessWidget {
     final lastSeen = timestamp.toDate();
     final difference = now.difference(lastSeen);
 
-    if (difference.isNegative || difference.inSeconds < 60) {
+    if (difference.isNegative || difference < const Duration(minutes: 5)) {
       return 'نشط الآن';
-    }
-
-    if (difference.inMinutes < 2) {
-      return 'آخر نشاط منذ دقيقة';
     }
 
     if (difference.inMinutes < 60) {

@@ -21,7 +21,7 @@ class ChildShell extends StatefulWidget {
   State<ChildShell> createState() => _ChildShellState();
 }
 
-class _ChildShellState extends State<ChildShell> {
+class _ChildShellState extends State<ChildShell> with WidgetsBindingObserver {
   final LinkedChildStorage _linkedChildStorage = Get.find<LinkedChildStorage>();
 
   final LinkedDeviceService _linkedDeviceService =
@@ -38,6 +38,9 @@ class _ChildShellState extends State<ChildShell> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
     _startDeviceMonitoring();
   }
 
@@ -64,18 +67,11 @@ class _ChildShellState extends State<ChildShell> {
       },
     );
 
-    await _sendHeartbeat();
-
     if (!mounted || _isRevoking) {
       return;
     }
 
-    _heartbeatTimer = Timer.periodic(
-      const Duration(minutes: 2),
-      (_) {
-        _sendHeartbeat();
-      },
-    );
+    _startHeartbeat();
   }
 
   Future<void> _sendHeartbeat() async {
@@ -100,8 +96,7 @@ class _ChildShellState extends State<ChildShell> {
 
     _isRevoking = true;
 
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = null;
+    _stopHeartbeat();
 
     await _deviceSubscription?.cancel();
     _deviceSubscription = null;
@@ -127,8 +122,27 @@ class _ChildShellState extends State<ChildShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      _startHeartbeat();
+      return;
+    }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _stopHeartbeat();
+    }
+  }
+
+  @override
   void dispose() {
-    _heartbeatTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+
+    _stopHeartbeat();
     _deviceSubscription?.cancel();
 
     super.dispose();
@@ -183,5 +197,27 @@ class _ChildShellState extends State<ChildShell> {
         ],
       ),
     );
+  }
+
+  void _startHeartbeat() {
+    if (_isRevoking || _linkedChild == null) {
+      return;
+    }
+
+    _heartbeatTimer?.cancel();
+
+    _sendHeartbeat();
+
+    _heartbeatTimer = Timer.periodic(
+      const Duration(minutes: 3),
+      (_) {
+        _sendHeartbeat();
+      },
+    );
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
   }
 }
