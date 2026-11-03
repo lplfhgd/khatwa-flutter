@@ -202,105 +202,121 @@ class ParentPairScreen extends StatelessWidget {
 
                   final devices = snapshot.data?.docs ?? [];
 
-                  if (devices.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(
-                            Icons.devices_other_outlined,
-                            size: 42,
-                            color: Colors.grey,
+                  final activeDevices = devices.where((device) {
+                    return device.data()['active'] == true;
+                  }).toList();
+
+                  final revokedDevicesCount =
+                      devices.length - activeDevices.length;
+
+                  if (activeDevices.isEmpty) {
+                    return Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          SizedBox(height: 10),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.devices_other_outlined,
+                                size: 42,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 10),
+                              Text(
+                                'لا توجد أجهزة نشطة مرتبطة بهذا الطفل.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (revokedDevicesCount > 0) ...[
+                          const SizedBox(height: 12),
                           Text(
-                            'لا توجد أجهزة مرتبطة بهذا الطفل.',
+                            'أجهزة سابقة تم إلغاء ربطها: $revokedDevicesCount',
                             textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     );
                   }
 
                   return Column(
-                    children: devices.map((device) {
-                      final data = device.data();
-                      final isActive = data['active'] == true;
-                      final lastSeenAt = data['lastSeenAt'];
+                    children: [
+                      ...activeDevices.map((device) {
+                        final data = device.data();
+                        final lastSeenAt = data['lastSeenAt'];
 
-                      final lastSeenText = _formatLastSeen(
-                        lastSeenAt is Timestamp ? lastSeenAt : null,
-                      );
+                        final lastSeenText = _formatLastSeen(
+                          lastSeenAt is Timestamp ? lastSeenAt : null,
+                        );
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? KColors.primary.withValues(
-                                          alpha: 0.12,
-                                        )
-                                      : Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Icon(
-                                  Icons.smartphone,
-                                  color:
-                                      isActive ? KColors.primary : Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'جهاز الطفل',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                        return Card(
+                          margin: const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: KColors.primary.withValues(
+                                      alpha: 0.12,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      isActive
-                                          ? lastSeenText
-                                          : 'تم إلغاء الربط',
-                                      style: TextStyle(
-                                        color: isActive
-                                            ? KColors.primary
-                                            : Colors.grey,
-                                        fontWeight: isActive &&
-                                                lastSeenText == 'نشط الآن'
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                    if (isActive &&
-                                        lastSeenText != 'نشط الآن') ...[
-                                      const SizedBox(height: 3),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.smartphone,
+                                    color: KColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
                                       const Text(
-                                        'مرتبط',
+                                        'جهاز الطفل',
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
                                         ),
                                       ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lastSeenText,
+                                        style: TextStyle(
+                                          color: KColors.primary,
+                                          fontWeight: lastSeenText == 'نشط الآن'
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                      if (lastSeenText != 'نشط الآن') ...[
+                                        const SizedBox(height: 3),
+                                        const Text(
+                                          'مرتبط',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              if (isActive)
                                 TextButton(
                                   onPressed: () => _confirmRevoke(
                                     context: context,
@@ -315,11 +331,24 @@ class ParentPairScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      if (revokedDevicesCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'أجهزة سابقة تم إلغاء ربطها: $revokedDevicesCount',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ),
-                      );
-                    }).toList(),
+                    ],
                   );
                 },
               ),
@@ -385,7 +414,7 @@ class ParentPairScreen extends StatelessWidget {
         return AlertDialog(
           title: const Text('إلغاء ربط الجهاز؟'),
           content: const Text(
-            'لن يتمكن هذا الجهاز من الدخول إلى حساب الطفل بعد إعادة تشغيل التطبيق.',
+            'سيتم فصل هذا الجهاز عن حساب الطفل ولن يتمكن من الاستمرار في استخدامه.',
           ),
           actions: [
             TextButton(
@@ -424,7 +453,9 @@ class ParentPairScreen extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم إلغاء ربط الجهاز بنجاح.'),
+          content: Text(
+            'تم إلغاء ربط الجهاز بنجاح.',
+          ),
         ),
       );
     } on StateError catch (error) {
@@ -432,7 +463,9 @@ class ParentPairScreen extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.message.toString()),
+          content: Text(
+            error.message.toString(),
+          ),
         ),
       );
     } catch (_) {
@@ -440,7 +473,9 @@ class ParentPairScreen extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تعذر إلغاء ربط الجهاز. حاول مجددًا.'),
+          content: Text(
+            'تعذر إلغاء ربط الجهاز. حاول مجددًا.',
+          ),
         ),
       );
     }
