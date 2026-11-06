@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/bindings/app_binding.dart';
-import 'features/startup/views/app_start_screen.dart';
 import 'core/theme/k_colors.dart';
-import 'package:get/get.dart';
+import 'core/theme/playful_colors.dart';
+import 'features/startup/views/app_start_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -19,6 +21,7 @@ Future<void> main() async {
 
 class KhatwaApp extends StatefulWidget {
   const KhatwaApp({super.key});
+
   @override
   State<KhatwaApp> createState() => _KhatwaAppState();
 }
@@ -26,39 +29,154 @@ class KhatwaApp extends StatefulWidget {
 class _KhatwaAppState extends State<KhatwaApp> {
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: KColors.primary,
+      primary: KColors.primary,
+      surface: KColors.background,
+    );
+
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+    );
+
+    final radius = BorderRadius.circular(16);
+
+    final outline = OutlineInputBorder(
+      borderRadius: radius,
+      borderSide: BorderSide(
+        color: colorScheme.outlineVariant,
+      ),
+    );
+
+    final theme = base.copyWith(
+      extensions: const [
+        PlayfulColors.light,
+      ],
+      scaffoldBackgroundColor: colorScheme.surface,
+      textTheme: GoogleFonts.cairoTextTheme(
+        base.textTheme,
+      ).apply(
+        bodyColor: colorScheme.onSurface,
+        displayColor: colorScheme.onSurface,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.cairo(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: colorScheme.onSurface,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: colorScheme.surfaceContainerLowest,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(
+            color: colorScheme.outlineVariant,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.surfaceContainerLow,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: outline,
+        enabledBorder: outline,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            color: colorScheme.error,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            color: colorScheme.error,
+            width: 2,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(54),
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+          ),
+          textStyle: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(54),
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+          ),
+          side: BorderSide(
+            color: colorScheme.primary,
+          ),
+          foregroundColor: colorScheme.primary,
+          textStyle: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: colorScheme.primary,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: colorScheme.surfaceContainerLowest,
+        indicatorColor: colorScheme.primaryContainer,
+        labelTextStyle: WidgetStatePropertyAll(
+          GoogleFonts.cairo(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+
     return GetMaterialApp(
       initialBinding: AppBinding(),
       debugShowCheckedModeBanner: false,
       title: 'خطوة | Khatwa',
       locale: const Locale('ar'),
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily:
-            'IBM Plex Sans Arabic', // Requires user-installed font assets for exact production rendering.
-        scaffoldBackgroundColor: KColors.background,
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: KColors.primary,
-            primary: KColors.primary,
-            surface: KColors.background),
-        appBarTheme: const AppBarTheme(
-            backgroundColor: KColors.background,
-            foregroundColor: KColors.text,
-            centerTitle: true),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: KColors.soft,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        ),
-      ),
-      builder: (context, child) =>
-          Directionality(textDirection: TextDirection.rtl, child: child!),
+      theme: theme,
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child!,
+        );
+      },
       home: const AppStartScreen(),
     );
   }
 }
-
-/// Requires a signed-in parent before allowing access to parent tools.

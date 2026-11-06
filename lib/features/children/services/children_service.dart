@@ -39,6 +39,11 @@ class ChildrenService {
   Future<ChildModel> addChild({
     required String name,
     int? birthYear,
+    required ChildGender gender,
+    required CommunicationMethod communicationMethod,
+    required Set<SensoryPreference> sensoryPreferences,
+    required Set<DailyGoal> goals,
+    required LessonUnit lessonUnit,
   }) async {
     final collection = _childrenCollection();
     final ref = collection.doc();
@@ -47,6 +52,11 @@ class ChildrenService {
       id: ref.id,
       name: name.trim(),
       birthYear: birthYear,
+      gender: gender,
+      communicationMethod: communicationMethod,
+      sensoryPreferences: sensoryPreferences,
+      goals: goals,
+      lessonUnit: lessonUnit,
     );
 
     await ref.set({
@@ -62,15 +72,21 @@ class ChildrenService {
     required String childId,
     required String name,
     int? birthYear,
+    required ChildGender gender,
+    required CommunicationMethod communicationMethod,
+    required Set<SensoryPreference> sensoryPreferences,
+    required Set<DailyGoal> goals,
+    required LessonUnit lessonUnit,
   }) async {
-    final child = ChildModel(
-      id: childId,
-      name: name.trim(),
-      birthYear: birthYear,
-    );
-
     await _childrenCollection().doc(childId).update({
-      ...child.toFirestore(),
+      'name': name.trim(),
+      'birthYear': birthYear,
+      'gender': gender.name,
+      'communicationMethod': communicationMethod.name,
+      'sensoryPreferences':
+          sensoryPreferences.map((item) => item.name).toList(),
+      'goals': goals.map((item) => item.name).toList(),
+      'lessonUnit': lessonUnit.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

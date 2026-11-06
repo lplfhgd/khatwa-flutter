@@ -51,6 +51,11 @@ class ChildrenController extends GetxController {
   Future<bool> addChild({
     required String name,
     int? birthYear,
+    required ChildGender gender,
+    required CommunicationMethod communicationMethod,
+    required Set<SensoryPreference> sensoryPreferences,
+    required Set<DailyGoal> goals,
+    required LessonUnit lessonUnit,
   }) async {
     if (isSaving.value) return false;
 
@@ -61,6 +66,11 @@ class ChildrenController extends GetxController {
       final child = await _childrenService.addChild(
         name: name,
         birthYear: birthYear,
+        gender: gender,
+        communicationMethod: communicationMethod,
+        sensoryPreferences: sensoryPreferences,
+        goals: goals,
+        lessonUnit: lessonUnit,
       );
 
       _selectedChildController.selectChild(child.id, child.name);
@@ -76,7 +86,12 @@ class ChildrenController extends GetxController {
   Future<bool> updateChild({
     required String childId,
     required String name,
+    required ChildGender gender,
     int? birthYear,
+    required CommunicationMethod communicationMethod,
+    required Set<SensoryPreference> sensoryPreferences,
+    required Set<DailyGoal> goals,
+    required LessonUnit lessonUnit,
   }) async {
     if (isSaving.value) return false;
 
@@ -88,6 +103,11 @@ class ChildrenController extends GetxController {
         childId: childId,
         name: name,
         birthYear: birthYear,
+        gender: gender,
+        communicationMethod: communicationMethod,
+        sensoryPreferences: sensoryPreferences,
+        goals: goals,
+        lessonUnit: lessonUnit,
       );
 
       if (_selectedChildController.selectedChildId.value == childId) {
