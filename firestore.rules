@@ -30,6 +30,14 @@ service cloud.firestore {
 
       allow read, create, update, delete:
         if isParent(parentUid);
+        // =========================
+// Children profiles
+// =========================
+
+match /children/{childId} {
+  allow read, create, update, delete:
+    if isParent(parentUid);
+}
 
       // =========================
       // Linked child devices
@@ -38,26 +46,64 @@ service cloud.firestore {
       match /children/{childId}/linkedDevices/{deviceId} {
 
         // ولي الأمر يستطيع إدارة أجهزة أطفاله.
-// جهاز الطفل يستطيع قراءة سجل جهازه فقط.
-allow read: if isParent(parentUid)
-  || (
-    isAnonymousUser()
-    && deviceId == request.auth.uid
-  );
+         // جهاز الطفل يستطيع قراءة سجل جهازه فقط.
+          allow read: if isParent(parentUid)
+          || (
+          isAnonymousUser()
+          && deviceId == request.auth.uid
+           );
 
-// ولي الأمر يستطيع تعديل أو حذف الجهاز.
-// جهاز الطفل يستطيع تحديث lastSeenAt فقط في سجل جهازه.
+            // ولي الأمر يستطيع تعديل أو حذف الجهاز.
+         // جهاز الطفل يستطيع تحديث lastSeenAt فقط في سجل جهازه.
 allow update: if isParent(parentUid)
+
+  // الجهاز نفسه يستطيع تحديث lastSeenAt فقط
+  // طالما أن ربطه ما زال نشطًا.
   || (
     isAnonymousUser()
+
     && deviceId == request.auth.uid
+
     && resource.data.active == true
+
     && request.resource.data.active == true
+
     && request.resource.data.lastSeenAt == request.time
+
     && request.resource.data.diff(resource.data).affectedKeys()
       .hasOnly([
         'lastSeenAt'
       ])
+  )
+
+  // عند ربط جهاز جديد:
+  // الجهاز الجديد يستطيع تعطيل الجهاز السابق فقط
+  // ضمن نفس transaction التي تنقل الجلسة إليه.
+  || (
+    isAnonymousUser()
+
+    && deviceId != request.auth.uid
+
+    && resource.data.active == true
+
+    && request.resource.data.active == false
+
+    && request.resource.data.diff(resource.data).affectedKeys()
+      .hasOnly([
+        'active'
+      ])
+
+    && getAfter(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/deviceSession/current
+    ).data.deviceId == request.auth.uid
+
+    && getAfter(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/deviceSession/current
+    ).data.active == true
+
+    && getAfter(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+    ).data.active == true
   );
 
 allow delete:
@@ -105,6 +151,94 @@ allow delete:
             /databases/$(database)/documents/pairingCodes/$(request.resource.data.pairingCode)
           ).data.childId == childId;
       }
+      // =========================
+// Current child device session
+// =========================
+
+match /children/{childId}/deviceSession/{sessionId} {
+
+  // لا يوجد إلا مستند جلسة واحد لكل طفل.
+  allow read: if isParent(parentUid)
+    || (
+      isAnonymousUser()
+      && sessionId == 'current'
+    );
+
+  // جهاز الطفل يستطيع إنشاء الجلسة الحالية فقط
+  // أثناء عملية ربط صحيحة.
+  allow create: if isAnonymousUser()
+
+    && sessionId == 'current'
+
+    && request.resource.data.keys().hasOnly([
+      'deviceId',
+      'active',
+      'linkedAt'
+    ])
+
+    && request.resource.data.deviceId == request.auth.uid
+
+    && request.resource.data.active == true
+
+    && request.resource.data.linkedAt == request.time
+
+    && getAfter(
+      /databases/$(database)/documents/pairingCodes/$(getAfter(
+        /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+      ).data.pairingCode)
+    ).data.used == true
+
+    && getAfter(
+      /databases/$(database)/documents/pairingCodes/$(getAfter(
+        /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+      ).data.pairingCode)
+    ).data.claimedBy == request.auth.uid
+
+    && getAfter(
+      /databases/$(database)/documents/pairingCodes/$(getAfter(
+        /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+      ).data.pairingCode)
+    ).data.parentId == parentUid
+
+    && getAfter(
+      /databases/$(database)/documents/pairingCodes/$(getAfter(
+        /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+      ).data.pairingCode)
+    ).data.childId == childId;
+
+  // عند ربط جهاز جديد، تصبح الجلسة له.
+  allow update: if isParent(parentUid)
+    || (
+      isAnonymousUser()
+
+      && sessionId == 'current'
+
+      && request.resource.data.keys().hasOnly([
+        'deviceId',
+        'active',
+        'linkedAt'
+      ])
+
+      && request.resource.data.deviceId == request.auth.uid
+
+      && request.resource.data.active == true
+
+      && request.resource.data.linkedAt == request.time
+
+      && getAfter(
+        /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+      ).data.active == true
+
+      && getAfter(
+        /databases/$(database)/documents/pairingCodes/$(getAfter(
+          /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+        ).data.pairingCode)
+      ).data.claimedBy == request.auth.uid
+    );
+
+     allow delete: if isParent(parentUid);
+  }
+
 
       match /{document=**} {
         allow read, create, update, delete:

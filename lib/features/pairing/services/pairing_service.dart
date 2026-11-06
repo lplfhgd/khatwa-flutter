@@ -133,13 +133,17 @@ class PairingService {
     try {
       return await _firestore.runTransaction<LinkedChildModel>(
         (transaction) async {
-          final snapshot = await transaction.get(pairingRef);
+          // ---------------------------------------------------------
+          // 1. قراءة رمز الربط
+          // ---------------------------------------------------------
 
-          if (!snapshot.exists) {
+          final pairingSnapshot = await transaction.get(pairingRef);
+
+          if (!pairingSnapshot.exists) {
             throw StateError('رمز الربط غير صحيح.');
           }
 
-          final data = snapshot.data();
+          final data = pairingSnapshot.data();
 
           if (data == null) {
             throw StateError('بيانات الربط غير صالحة.');
@@ -173,13 +177,47 @@ class PairingService {
             throw StateError('بيانات الربط غير صالحة.');
           }
 
-          final deviceRef = _firestore
+          // ---------------------------------------------------------
+          // 2. مراجع الجهاز والجلسة
+          // ---------------------------------------------------------
+
+          final childRef = _firestore
               .collection('parents')
               .doc(parentId)
               .collection('children')
-              .doc(childId)
-              .collection('linkedDevices')
-              .doc(deviceUid);
+              .doc(childId);
+
+          final deviceRef = childRef.collection('linkedDevices').doc(deviceUid);
+
+          final sessionRef =
+              childRef.collection('deviceSession').doc('current');
+
+          // ---------------------------------------------------------
+          // 3. قراءة الجلسة الحالية قبل أي عملية كتابة
+          // ---------------------------------------------------------
+
+          final sessionSnapshot = await transaction.get(sessionRef);
+
+          DocumentReference<Map<String, dynamic>>? oldDeviceRef;
+          DocumentSnapshot<Map<String, dynamic>>? oldDeviceSnapshot;
+
+          if (sessionSnapshot.exists) {
+            final sessionData = sessionSnapshot.data();
+            final oldDeviceId = sessionData?['deviceId'];
+
+            if (oldDeviceId is String &&
+                oldDeviceId.isNotEmpty &&
+                oldDeviceId != deviceUid) {
+              oldDeviceRef =
+                  childRef.collection('linkedDevices').doc(oldDeviceId);
+
+              oldDeviceSnapshot = await transaction.get(oldDeviceRef);
+            }
+          }
+
+          // ---------------------------------------------------------
+          // 4. بعد انتهاء جميع القراءات نبدأ الكتابة
+          // ---------------------------------------------------------
 
           transaction.update(pairingRef, {
             'used': true,
@@ -187,11 +225,29 @@ class PairingService {
             'claimedAt': FieldValue.serverTimestamp(),
           });
 
+          // إلغاء الجهاز السابق إن وُجد وكان مختلفًا عن الجهاز الجديد.
+          if (oldDeviceRef != null &&
+              oldDeviceSnapshot != null &&
+              oldDeviceSnapshot.exists &&
+              oldDeviceSnapshot.data()?['active'] == true) {
+            transaction.update(oldDeviceRef, {
+              'active': false,
+            });
+          }
+
+          // تسجيل الجهاز الجديد.
           transaction.set(deviceRef, {
             'active': true,
             'pairingCode': normalizedCode,
             'linkedAt': FieldValue.serverTimestamp(),
             'lastSeenAt': FieldValue.serverTimestamp(),
+          });
+
+          // جعل الجهاز الجديد هو الجلسة الوحيدة الحالية للطفل.
+          transaction.set(sessionRef, {
+            'deviceId': deviceUid,
+            'active': true,
+            'linkedAt': FieldValue.serverTimestamp(),
           });
 
           return LinkedChildModel(
