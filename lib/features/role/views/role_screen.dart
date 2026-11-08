@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/theme/k_colors.dart';
-import '../../../shared/widgets/add_item_dialog.dart';
 import '../../../shared/widgets/k_card.dart';
 import '../../auth/views/parent_auth_gate.dart';
 import '../../children/views/child_profiles_screen.dart';
@@ -14,7 +13,6 @@ import '../../parent/views/parent_home.dart';
 import '../../parent/views/parent_progress.dart';
 import '../../parent/views/parent_settings.dart';
 import '../../parent/views/parent_shell.dart';
-import '../../routine/controllers/routine_controller.dart';
 import '../../routine/views/parent_routine_screen.dart';
 
 class RoleScreen extends StatelessWidget {
@@ -67,17 +65,7 @@ class RoleScreen extends StatelessWidget {
                           navigate: navigate,
                           childProfiles: const ChildProfilesSection(),
                           onOpenRoutine: () => Get.to(
-                            () => ParentRoutineScreen(
-                              onAddRoutine: () {
-                                showAddDialog(
-                                  context,
-                                  title: 'خطوة جديدة',
-                                  hint: 'مثال: ارتداء الملابس',
-                                  onSave:
-                                      Get.find<RoutineController>().addRoutine,
-                                );
-                              },
-                            ),
+                            () => const ParentRoutineScreen(),
                           ),
                           onOpenPairing: () => Get.to(
                             () => const ParentPairScreen(),

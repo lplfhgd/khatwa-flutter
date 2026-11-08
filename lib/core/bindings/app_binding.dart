@@ -13,6 +13,7 @@ import '../../features/pairing/services/linked_child_storage.dart';
 import '../../features/pairing/services/linked_device_service.dart';
 import '../../features/communication/controllers/communication_controller.dart';
 import '../../features/communication/services/communication_service.dart';
+import '../../features/routine/services/routine_service.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -89,8 +90,18 @@ class AppBinding extends Bindings {
       permanent: true,
     );
     // Daily routine state management
+    // Daily routine Firestore service
+    Get.put<RoutineService>(
+      RoutineService(),
+      permanent: true,
+    );
+
+// Daily routine state management
     Get.put<RoutineController>(
-      RoutineController(),
+      RoutineController(
+        Get.find<RoutineService>(),
+        Get.find<SelectedChildController>(),
+      ),
       permanent: true,
     );
   }

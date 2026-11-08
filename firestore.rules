@@ -366,6 +366,38 @@ match /videos/{storyId} {
     // =========================
     // Deny everything else
     // =========================
+        // =========================
+    // Routines
+    // =========================
+
+    match /routines/{childId} {
+
+      allow create: if isRegisteredParent()
+        && request.resource.data.parentId == request.auth.uid
+        && request.resource.data.childId == childId
+        && exists(
+          /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
+        );
+
+      allow read: if isRegisteredParent()
+  && exists(
+    /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
+  );
+
+      allow update: if isRegisteredParent()
+        && resource.data.parentId == request.auth.uid
+        && resource.data.childId == childId
+        && request.resource.data.parentId == request.auth.uid
+        && request.resource.data.childId == childId
+        && exists(
+          /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
+        );
+
+      allow delete: if isRegisteredParent()
+        && resource.data.parentId == request.auth.uid
+        && resource.data.childId == childId;
+    }
+
 
     match /{document=**} {
       allow read, write: if false;
