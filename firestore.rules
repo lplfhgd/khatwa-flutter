@@ -313,6 +313,55 @@ match /children/{childId}/deviceSession/{sessionId} {
 
       allow delete: if false;
     }
+    // =========================
+// Communication cards
+// =========================
+
+match /cards/{cardId} {
+
+  allow create: if isRegisteredParent()
+    && request.resource.data.parentId == request.auth.uid
+    && request.resource.data.childId is string
+    && exists(
+      /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(request.resource.data.childId)
+    );
+
+  allow read: if isRegisteredParent()
+    && resource.data.parentId == request.auth.uid;
+
+  allow update: if isRegisteredParent()
+    && resource.data.parentId == request.auth.uid
+    && request.resource.data.parentId == request.auth.uid
+    && request.resource.data.childId == resource.data.childId
+    && exists(
+      /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(resource.data.childId)
+    );
+
+  allow delete: if isRegisteredParent()
+    && resource.data.parentId == request.auth.uid;
+}
+
+// =========================
+// Stories
+// =========================
+
+match /videos/{storyId} {
+
+  allow create: if isRegisteredParent()
+    && request.resource.data.parentId == request.auth.uid
+    && request.resource.data.childId is string
+    && exists(
+      /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(request.resource.data.childId)
+    );
+
+  allow read: if isRegisteredParent()
+    && resource.data.parentId == request.auth.uid;
+
+  allow update: if false;
+
+  allow delete: if isRegisteredParent()
+    && resource.data.parentId == request.auth.uid;
+}
 
     // =========================
     // Deny everything else

@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../../core/theme/k_colors.dart';
 import '../../../shared/widgets/add_item_dialog.dart';
 import '../../../shared/widgets/k_card.dart';
-import '../../aac/controllers/aac_controller.dart';
 import '../../auth/views/parent_auth_gate.dart';
 import '../../children/views/child_profiles_screen.dart';
 import '../../children/views/child_profiles_section.dart';
@@ -84,29 +83,7 @@ class RoleScreen extends StatelessWidget {
                             () => const ParentPairScreen(),
                           ),
                         ),
-                        content: ParentContent(
-                          onAddAacCard: () {
-                            showAddDialog(
-                              context,
-                              title: 'بطاقة AAC جديدة',
-                              hint: 'مثال: أريد كتابًا',
-                              onSave: Get.find<AacController>().addCard,
-                            );
-                          },
-                          onOpenRoutine: () => Get.to(
-                            () => ParentRoutineScreen(
-                              onAddRoutine: () {
-                                showAddDialog(
-                                  context,
-                                  title: 'خطوة جديدة',
-                                  hint: 'مثال: ارتداء الملابس',
-                                  onSave:
-                                      Get.find<RoutineController>().addRoutine,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
+                        content: const ParentContent(),
                         progress: const ParentProgress(),
                         settings: ParentSettings(
                           onManageChildren: () => Get.to(

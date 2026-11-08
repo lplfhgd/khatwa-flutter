@@ -11,6 +11,8 @@ import '../../features/pairing/controllers/pairing_controller.dart';
 import '../../features/pairing/services/pairing_service.dart';
 import '../../features/pairing/services/linked_child_storage.dart';
 import '../../features/pairing/services/linked_device_service.dart';
+import '../../features/communication/controllers/communication_controller.dart';
+import '../../features/communication/services/communication_service.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -42,6 +44,19 @@ class AppBinding extends Bindings {
     Get.put<ChildrenController>(
       ChildrenController(
         Get.find<ChildrenService>(),
+        Get.find<SelectedChildController>(),
+      ),
+      permanent: true,
+    );
+    // Parent communication content
+    Get.put<CommunicationService>(
+      CommunicationService(),
+      permanent: true,
+    );
+
+    Get.put<CommunicationController>(
+      CommunicationController(
+        Get.find<CommunicationService>(),
         Get.find<SelectedChildController>(),
       ),
       permanent: true,
