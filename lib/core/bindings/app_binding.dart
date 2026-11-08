@@ -18,6 +18,13 @@ import '../../features/reports/controllers/reports_controller.dart';
 import '../../features/reports/services/reports_service.dart';
 import '../../features/independence/controllers/independence_controller.dart';
 import '../../features/independence/services/independence_service.dart';
+import '../../features/settings/controllers/theme_controller.dart';
+import '../../features/settings/services/theme_service.dart';
+import '../../features/settings/services/notification_service.dart';
+import '../../features/settings/controllers/notification_preferences_controller.dart';
+import '../../features/settings/services/notification_preferences_service.dart';
+import '../../features/settings/services/notification_device_service.dart';
+import '../../features/parent/controllers/parent_navigation_controller.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -25,6 +32,17 @@ class AppBinding extends Bindings {
     // Firebase Authentication
     Get.put<AuthService>(
       AuthService(),
+      permanent: true,
+    );
+    Get.put<ThemeService>(
+      ThemeService(),
+      permanent: true,
+    );
+
+    Get.put<ThemeController>(
+      ThemeController(
+        Get.find<ThemeService>(),
+      ),
       permanent: true,
     );
 
@@ -44,6 +62,25 @@ class AppBinding extends Bindings {
       ChildrenService(),
       permanent: true,
     );
+    Get.put<NotificationDeviceService>(
+      NotificationDeviceService(),
+      permanent: true,
+    );
+    Get.put<NotificationService>(
+      NotificationService(),
+      permanent: true,
+    );
+    Get.put<NotificationPreferencesService>(
+      NotificationPreferencesService(),
+      permanent: true,
+    );
+
+    Get.put<NotificationPreferencesController>(
+      NotificationPreferencesController(
+        Get.find<NotificationPreferencesService>(),
+      ),
+      permanent: true,
+    );
 
     // Children state management
     Get.put<ChildrenController>(
@@ -56,6 +93,10 @@ class AppBinding extends Bindings {
     // Parent communication content
     Get.put<CommunicationService>(
       CommunicationService(),
+      permanent: true,
+    );
+    Get.put<ParentNavigationController>(
+      ParentNavigationController(),
       permanent: true,
     );
 

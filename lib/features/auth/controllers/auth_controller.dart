@@ -28,13 +28,27 @@ class AuthController extends GetxController {
   }
 
   Future<bool> register({
+    required String fullName,
     required String email,
     required String password,
   }) {
     return _execute(
       () => _authService.register(
+        fullName: fullName,
         email: email,
         password: password,
+      ),
+    );
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _execute(
+      () => _authService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
       ),
     );
   }

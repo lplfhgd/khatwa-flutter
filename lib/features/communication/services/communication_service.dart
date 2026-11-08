@@ -65,6 +65,25 @@ class CommunicationService {
     });
   }
 
+  Stream<List<StoryItem>> watchChildStories({
+    required String parentId,
+    required String childId,
+  }) {
+    return _stories
+        .where('parentId', isEqualTo: parentId)
+        .where('childId', isEqualTo: childId)
+        .snapshots()
+        .map((snapshot) {
+      final stories = snapshot.docs.map(StoryItem.fromFirestore).toList();
+
+      stories.sort(
+        (a, b) => b.createdAt.compareTo(a.createdAt),
+      );
+
+      return stories;
+    });
+  }
+
   Future<void> saveCard({
     required String childId,
     CommunicationCard? existing,

@@ -397,6 +397,54 @@ match /videos/{storyId} {
         && resource.data.parentId == request.auth.uid
         && resource.data.childId == childId;
     }
+    // =========================
+// Parent notification devices
+// =========================
+
+match /notificationDevices/{deviceId} {
+
+  allow read, delete:
+    if isParent(parentUid);
+
+  allow create:
+    if isParent(parentUid)
+
+    && request.resource.data.keys().hasOnly([
+      'fcmToken',
+      'platform',
+      'notificationsEnabled',
+      'updatedAt'
+    ])
+
+    && request.resource.data.fcmToken is string
+    && request.resource.data.fcmToken.size() > 0
+
+    && request.resource.data.platform == 'android'
+
+    && request.resource.data.notificationsEnabled is bool
+
+    && request.resource.data.updatedAt == request.time;
+
+  allow update:
+    if isParent(parentUid)
+
+    && request.resource.data.keys().hasOnly([
+      'fcmToken',
+      'platform',
+      'notificationsEnabled',
+      'updatedAt'
+    ])
+
+    && request.resource.data.fcmToken is string
+    && request.resource.data.fcmToken.size() > 0
+
+    && request.resource.data.platform == 'android'
+
+    && request.resource.data.notificationsEnabled is bool
+
+    && request.resource.data.updatedAt == request.time;
+}
+    
 
 
     match /{document=**} {

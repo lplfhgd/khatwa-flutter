@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../children/controllers/children_controller.dart';
+import '../controllers/parent_navigation_controller.dart';
 
 class ParentShell extends StatefulWidget {
   const ParentShell({
@@ -23,11 +24,47 @@ class ParentShell extends StatefulWidget {
 
 class _ParentShellState extends State<ParentShell> {
   int tab = 0;
+  Worker? _navigationWorker;
 
+  @override
   @override
   void initState() {
     super.initState();
+
     Get.find<ChildrenController>().startWatching();
+
+    final navigationController = Get.find<ParentNavigationController>();
+
+    _navigationWorker = ever<int?>(
+      navigationController.requestedTab,
+      (requestedTab) {
+        if (requestedTab == null) {
+          return;
+        }
+
+        if (requestedTab < 0 || requestedTab > 3) {
+          navigationController.clearRequest();
+          return;
+        }
+
+        if (mounted) {
+          changeTab(requestedTab);
+        }
+
+        navigationController.clearRequest();
+      },
+    );
+
+    final pendingTab = navigationController.requestedTab.value;
+
+    if (pendingTab != null && pendingTab >= 0 && pendingTab <= 3) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        changeTab(pendingTab);
+        navigationController.clearRequest();
+      });
+    }
   }
 
   void changeTab(int index) {
@@ -82,6 +119,12 @@ class _ParentShellState extends State<ParentShell> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _navigationWorker?.dispose();
+    super.dispose();
   }
 }
 
