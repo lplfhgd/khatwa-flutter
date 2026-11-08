@@ -14,6 +14,10 @@ import '../../features/pairing/services/linked_device_service.dart';
 import '../../features/communication/controllers/communication_controller.dart';
 import '../../features/communication/services/communication_service.dart';
 import '../../features/routine/services/routine_service.dart';
+import '../../features/reports/controllers/reports_controller.dart';
+import '../../features/reports/services/reports_service.dart';
+import '../../features/independence/controllers/independence_controller.dart';
+import '../../features/independence/services/independence_service.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -100,6 +104,40 @@ class AppBinding extends Bindings {
     Get.put<RoutineController>(
       RoutineController(
         Get.find<RoutineService>(),
+        Get.find<SelectedChildController>(),
+      ),
+      permanent: true,
+    );
+    // Independence assessment service
+    Get.put<IndependenceService>(
+      IndependenceService(),
+      permanent: true,
+    );
+
+// Independence assessment state management
+    Get.put<IndependenceController>(
+      IndependenceController(
+        Get.find<IndependenceService>(),
+        Get.find<SelectedChildController>(),
+      ),
+      permanent: true,
+    );
+
+    // Parent reports service
+    Get.put<ReportsService>(
+      ReportsService(
+        Get.find<CommunicationService>(),
+        Get.find<RoutineService>(),
+        Get.find<IndependenceService>(),
+      ),
+      permanent: true,
+    );
+
+    // Parent reports state management
+    Get.put<ReportsController>(
+      ReportsController(
+        Get.find<ReportsService>(),
+        Get.find<ChildrenController>(),
         Get.find<SelectedChildController>(),
       ),
       permanent: true,
