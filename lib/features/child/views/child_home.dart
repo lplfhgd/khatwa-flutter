@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../pairing/services/linked_child_storage.dart';
+import '../../stories/controllers/stories_controller.dart';
+import '../../stories/views/stories_view.dart';
 
 class ChildHome extends StatefulWidget {
   const ChildHome({
@@ -89,10 +91,14 @@ class _ChildHomeState extends State<ChildHome> {
                         subtitle: 'أقرأ وأستمع للقصص',
                         imagePath: 'assets/images/stories_icon.png',
                         onTap: () {
-                          Get.snackbar(
-                            'قصصي',
-                            'سنربط واجهة القصص في الخطوة التالية.',
-                            snackPosition: SnackPosition.BOTTOM,
+                          if (Get.isRegistered<StoriesController>()) {
+                            Get.delete<StoriesController>();
+                          }
+
+                          Get.put(StoriesController());
+
+                          Get.to(
+                            () => const StoriesView(),
                           );
                         },
                       ),

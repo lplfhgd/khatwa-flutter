@@ -21,6 +21,24 @@ service cloud.firestore {
       return isSignedIn()
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
+    function isActiveLinkedChildDevice(parentUid, childId) {
+  return isAnonymousUser()
+    && exists(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+    )
+    && get(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/linkedDevices/$(request.auth.uid)
+    ).data.active == true
+    && exists(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/deviceSession/current
+    )
+    && get(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/deviceSession/current
+    ).data.active == true
+    && get(
+      /databases/$(database)/documents/parents/$(parentUid)/children/$(childId)/deviceSession/current
+    ).data.deviceId == request.auth.uid;
+}
 
     // =========================
     // Parent-owned data
@@ -354,8 +372,17 @@ match /videos/{storyId} {
       /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(request.resource.data.childId)
     );
 
-  allow read: if isRegisteredParent()
-    && resource.data.parentId == request.auth.uid;
+  allow read:
+  if (
+    isRegisteredParent()
+    && resource.data.parentId == request.auth.uid
+  )
+  || (
+    isActiveLinkedChildDevice(
+      resource.data.parentId,
+      resource.data.childId
+    )
+  );
 
   allow update: if false;
 

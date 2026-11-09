@@ -1,98 +1,94 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-/// Model for a story video. Designed to map easily to/from Firebase documents.
-/// When integrating with Firebase, add fromMap/toMap and fields like createdAt, addedBy, etc.
-class StoryVideo {
-  final String id;
-  final String title;
-  final String youtubeUrl;
-  final String? description;
-  final DateTime? createdAt;
-
-  StoryVideo({
-    required this.id,
-    required this.title,
-    required this.youtubeUrl,
-    this.description,
-    this.createdAt,
-  });
-
-  String? get videoId => YoutubePlayer.convertUrlToId(youtubeUrl);
-
-  String? get thumbnailUrl {
-    final id = videoId;
-    if (id == null) return null;
-    return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'youtubeUrl': youtubeUrl,
-      'description': description,
-      'createdAt': createdAt?.toIso8601String(),
-    };
-  }
-
-  factory StoryVideo.fromMap(Map<String, dynamic> map) {
-    return StoryVideo(
-      id: map['id']?.toString() ?? '',
-      title: map['title']?.toString() ?? '',
-      youtubeUrl: map['youtubeUrl']?.toString() ?? '',
-      description: map['description']?.toString(),
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString())
-          : null,
-    );
-  }
-}
+import '../../communication/models/story_item.dart';
+import '../../communication/services/communication_service.dart';
+import '../../pairing/services/linked_child_storage.dart';
+import '../story_player/bindings/story_player_binding.dart';
+import '../story_player/views/story_player_view.dart';
 
 class StoriesController extends GetxController {
-  final stories = <StoryVideo>[].obs;
-  final isLoading = false.obs;
+  StoriesController({
+    CommunicationService? communicationService,
+    LinkedChildStorage? linkedChildStorage,
+  })  : _communicationService =
+            communicationService ?? Get.find<CommunicationService>(),
+        _linkedChildStorage =
+            linkedChildStorage ?? Get.find<LinkedChildStorage>();
+
+  final CommunicationService _communicationService;
+  final LinkedChildStorage _linkedChildStorage;
+
+  final stories = <StoryItem>[].obs;
+  final isLoading = true.obs;
+  final errorMessage = ''.obs;
+
+  StreamSubscription<List<StoryItem>>? _storiesSubscription;
 
   @override
   void onInit() {
     super.onInit();
-    loadStories();
+    _startWatchingStories();
   }
 
-  /// Loads stories. Currently uses local sample data.
-  /// TODO(Firebase): Replace with a repository/service that streams from Firestore.
-  /// Example: stories.bindStream(storiesRepository.watchStories());
-  Future<void> loadStories() async {
+  Future<void> _startWatchingStories() async {
     isLoading.value = true;
+    errorMessage.value = '';
+
     try {
-      // Sample stories - replace with Firebase data later
-      stories.assignAll([
-        StoryVideo(
-          id: 'bedtime',
-          title: 'قصةالفأر الطماع',
-          youtubeUrl: 'https://youtu.be/wKi7l_Gbx5w',
-          description: ' فأر صغير طمع وأكل كثيراً من القمح حتى علق ولم يستطع الخروج، فتعلم أن الطمع يضيع كل شيء'
+      final linkedChild = await _linkedChildStorage.read();
 
+      if (linkedChild == null) {
+        errorMessage.value = 'تعذر العثور على بيانات الطفل المرتبط.';
+        isLoading.value = false;
+        return;
+      }
 
-        ),
-        // أضف روابط يوتيوب جديدة هنا أو اجلبها من Firebase لاحقًا
-        // StoryVideo(
-        //   id: 'school',
-        //   title: 'الذهاب إلى المدرسة',
-        //   youtubeUrl: 'https://www.youtube.com/watch?v=XXXX',
-        //   description: 'قصة عن الروتين الصباحي والذهاب للمدرسة',
-        // ),
-      ]);
-    } finally {
+      await _storiesSubscription?.cancel();
+
+      _storiesSubscription = _communicationService
+          .watchChildStories(
+        parentId: linkedChild.parentId,
+        childId: linkedChild.childId,
+      )
+          .listen(
+        (items) {
+          stories.assignAll(items);
+          errorMessage.value = '';
+          isLoading.value = false;
+        },
+        onError: (Object error) {
+          errorMessage.value = 'تعذر تحميل القصص حاليًا.';
+          isLoading.value = false;
+        },
+      );
+    } catch (_) {
+      errorMessage.value = 'تعذر تحميل القصص حاليًا.';
       isLoading.value = false;
     }
   }
 
-  void openStory(StoryVideo story) {
-    Get.toNamed('/story_player', arguments: story);
+  String thumbnailUrl(StoryItem story) {
+    return 'https://img.youtube.com/vi/${story.videoId}/hqdefault.jpg';
+  }
+
+  void openStory(StoryItem story) {
+    StoryPlayerBinding().dependencies();
+
+    Get.to(
+      () => const StoryPlayerView(),
+      arguments: story,
+    );
   }
 
   void goBack() {
     Get.back();
+  }
+
+  @override
+  void onClose() {
+    _storiesSubscription?.cancel();
+    super.onClose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/stories_controller.dart';
+import '../../communication/models/story_item.dart';
 
 class StoriesView extends GetView<StoriesController> {
   const StoriesView({super.key});
@@ -191,7 +192,8 @@ class StoriesView extends GetView<StoriesController> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -294,8 +296,8 @@ class StoriesView extends GetView<StoriesController> {
     });
   }
 
-  Widget _buildStoryVideoCard(StoryVideo story) {
-    final thumbnailUrl = story.thumbnailUrl;
+  Widget _buildStoryVideoCard(StoryItem story) {
+    final thumbnailUrl = controller.thumbnailUrl(story);
 
     return Material(
       color: cardBg,
@@ -319,38 +321,31 @@ class StoriesView extends GetView<StoriesController> {
                       width: 128,
                       height: 86,
                       color: const Color(0xFFEAF6F4),
-                      child: thumbnailUrl != null
-                          ? Image.network(
-                              thumbnailUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(
-                                  Icons.smart_display_rounded,
-                                  size: 42,
-                                  color: primaryTeal,
-                                ),
-                              ),
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const Center(
-                                  child: SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: primaryTeal,
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.smart_display_rounded,
-                                size: 42,
+                      child: Image.network(
+                        thumbnailUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(
+                            Icons.smart_display_rounded,
+                            size: 42,
+                            color: primaryTeal,
+                          ),
+                        ),
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+
+                          return const Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
                                 color: primaryTeal,
                               ),
                             ),
+                          );
+                        },
+                      ),
                     ),
                     Container(
                       width: 36,
@@ -385,20 +380,6 @@ class StoriesView extends GetView<StoriesController> {
                         height: 1.2,
                       ),
                     ),
-                    if (story.description != null &&
-                        story.description!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        story.description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: subtitleColor,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(

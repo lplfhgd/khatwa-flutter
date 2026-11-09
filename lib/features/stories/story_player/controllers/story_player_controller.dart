@@ -1,10 +1,11 @@
 import 'package:get/get.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-import '../../controllers/stories_controller.dart';
+import '../../../communication/models/story_item.dart';
 
 class StoryPlayerController extends GetxController {
   YoutubePlayerController? youtubeController;
+
   final isInitialized = false.obs;
 
   late final String title;
@@ -19,7 +20,8 @@ class StoryPlayerController extends GetxController {
 
   void _resolveArgs() {
     final args = Get.arguments;
-    if (args is StoryVideo) {
+
+    if (args is StoryItem) {
       title = args.title;
       youtubeUrl = args.youtubeUrl;
     } else if (args is Map) {
@@ -33,6 +35,7 @@ class StoryPlayerController extends GetxController {
 
   void initPlayer() {
     final videoId = YoutubePlayer.convertUrlToId(youtubeUrl);
+
     if (videoId != null) {
       youtubeController = YoutubePlayerController(
         initialVideoId: videoId,
@@ -45,6 +48,7 @@ class StoryPlayerController extends GetxController {
           enableCaption: true,
         ),
       );
+
       isInitialized.value = true;
     }
   }
