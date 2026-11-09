@@ -344,8 +344,17 @@ match /cards/{cardId} {
       /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(request.resource.data.childId)
     );
 
-  allow read: if isRegisteredParent()
-    && resource.data.parentId == request.auth.uid;
+  allow read:
+    if (
+      isRegisteredParent()
+      && resource.data.parentId == request.auth.uid
+    )
+    || (
+      isActiveLinkedChildDevice(
+        resource.data.parentId,
+        resource.data.childId
+      )
+    );
 
   allow update: if isRegisteredParent()
     && resource.data.parentId == request.auth.uid
@@ -397,33 +406,7 @@ match /videos/{storyId} {
     // Routines
     // =========================
 
-    match /routines/{childId} {
 
-      allow create: if isRegisteredParent()
-        && request.resource.data.parentId == request.auth.uid
-        && request.resource.data.childId == childId
-        && exists(
-          /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
-        );
-
-      allow read: if isRegisteredParent()
-  && exists(
-    /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
-  );
-
-      allow update: if isRegisteredParent()
-        && resource.data.parentId == request.auth.uid
-        && resource.data.childId == childId
-        && request.resource.data.parentId == request.auth.uid
-        && request.resource.data.childId == childId
-        && exists(
-          /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
-        );
-
-      allow delete: if isRegisteredParent()
-        && resource.data.parentId == request.auth.uid
-        && resource.data.childId == childId;
-    }
     // =========================
 // Parent notification devices
 // =========================
@@ -473,6 +456,59 @@ match /notificationDevices/{deviceId} {
 }
     
 
+
+    // =========================
+    // Routines
+    // =========================
+
+    match /routines/{childId} {
+      allow read:
+        if (
+          isRegisteredParent()
+          && resource.data.parentId == request.auth.uid
+          && resource.data.childId == childId
+        )
+        || (
+          isActiveLinkedChildDevice(
+            resource.data.parentId,
+            childId
+          )
+        );
+
+      allow create:
+        if isRegisteredParent()
+        && request.resource.data.parentId == request.auth.uid
+        && request.resource.data.childId == childId
+        && exists(
+          /databases/$(database)/documents/parents/$(request.auth.uid)/children/$(childId)
+        );
+
+      allow update:
+        if (
+          isRegisteredParent()
+          && resource.data.parentId == request.auth.uid
+          && resource.data.childId == childId
+          && request.resource.data.parentId == request.auth.uid
+          && request.resource.data.childId == childId
+        )
+        || (
+          isActiveLinkedChildDevice(
+            resource.data.parentId,
+            childId
+          )
+          && request.resource.data.parentId == resource.data.parentId
+          && request.resource.data.childId == resource.data.childId
+        );
+
+      allow delete:
+        if isRegisteredParent()
+        && resource.data.parentId == request.auth.uid
+        && resource.data.childId == childId;
+    }
+
+    // =========================
+    // Deny everything else
+    // =========================
 
     match /{document=**} {
       allow read, write: if false;
